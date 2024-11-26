@@ -127,7 +127,7 @@ def main(args):
     os.makedirs(output_dir, exist_ok=True)
 
     # avoid overwriting the input file
-    assert (args.output_filename != args.input_filename)
+    assert (args.output_filename != args.input_filename) 
 
     manifest = pd.read_csv(input_manifest, dtype=str)
 
