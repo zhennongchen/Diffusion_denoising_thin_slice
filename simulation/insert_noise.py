@@ -23,7 +23,7 @@ from brain_ct_ddpm.locations import data_dir
 
 # %%
 def get_args(default_args=[]):
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser() 
     parser.add_argument('--input_dir')
     parser.add_argument('--input_manifest')
     parser.add_argument('--input_filename', default='img_5mm.nii.gz')
@@ -161,7 +161,7 @@ def main(args):
         if args.dose_factor < 1:
             print('Adding noise...', flush=True)
             proj_noise = add_noise(proj, args.N0, args.dose_factor, args.seed) - proj
-            recon_noise = reconstruction_interleave(projector, proj_noise, 'hann')
+            recon_noise = reconstruction_interleave(projector, proj_noise, 'hann') # orignal data already has hann filter
 
             recon = recon + recon_noise
 
