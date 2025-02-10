@@ -181,15 +181,15 @@ def main(args):
     return sitk.GetArrayFromImage(sitk_img), proj, sitk.GetArrayFromImage(sitk_recon)
 
 
-# %%
-if __name__ == '__main__':
-    input_dir = './2022_mgh_brain_ct_dataset'
-    args = get_args([
-        '--input_dir', input_dir,
-        '--input_manifest', os.path.join(input_dir, 'manifest_data.csv'),
-        '--output_dir', input_dir,
-        '--dose_factor', '0.5',
-        '--output_filename', 'img_5mm_0.5.nii.gz'
-    ])
+# # %%
+# if __name__ == '__main__':
+#     input_dir = './2022_mgh_brain_ct_dataset'
+#     args = get_args([
+#         '--input_dir', input_dir,
+#         '--input_manifest', os.path.join(input_dir, 'manifest_data.csv'),
+#         '--output_dir', input_dir,
+#         '--dose_factor', '0.5',
+#         '--output_filename', 'img_5mm_0.5.nii.gz'
+#     ])
 
-    res = main(args)
+#     res = main(args)
