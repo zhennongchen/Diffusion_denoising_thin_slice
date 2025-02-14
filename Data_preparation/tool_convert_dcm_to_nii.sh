@@ -21,7 +21,7 @@ dcm2niix_fld="/Users/zhennongchen/Documents/GitHub/AI_reslice_orthogonal_view/dc
 
 main_path="/Volumes/Camca/home/ZC/Portable_CT_data"
 # define patient lists (the directory where you save all the patient data)
-PATIENTS=(${main_path}/IRB2022P002233/00102225/*)
+PATIENTS=(${main_path}/IRB2022P002233_collected_202404/00214956/*)
 
 echo ${#PATIENTS[@]}
 
@@ -37,7 +37,7 @@ do
   patient_id=$(basename $(dirname ${p}))
   patient_subid=$(basename ${p})
 
-  output_folder=${main_path}/nii_imgs
+  output_folder=${main_path}/nii_imgs_202404_new
   mkdir -p ${output_folder}/${patient_id}/
   mkdir -p ${output_folder}/${patient_id}/${patient_subid}/
   nii_folder=${output_folder}/${patient_id}/${patient_subid}/
@@ -53,7 +53,7 @@ do
       if [ "$(ls -A ${IMGS[${i}]})" ]; then  # check whether the image folder is empty
         
         filename='img'
-        o_file=${nii_folder}${filename}.nii.gz # define the name of output nii files, the name will be "timeframe.nii.gz"
+        o_file=${nii_folder}${filename}_${i}.nii.gz # define the name of output nii files, the name will be "timeframe.nii.gz"
         echo ${o_file}
 
         if [ -f ${o_file} ];then
