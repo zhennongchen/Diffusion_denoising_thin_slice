@@ -39,7 +39,7 @@ print('std max, min, mean, std, median, lower quartile, upper quartile: ', np.ma
 patient_sheet = pd.read_excel(os.path.join('/mnt/camca_NAS/denoising/','Patient_lists', 'fixedCT_static.xlsx'),dtype={'Patient_ID': str, 'Patient_subID': str})
 print('patient sheet len: ', len(patient_sheet))
 
-for i in range(0,2):# len(patient_sheet)):
+for i in range(0, len(patient_sheet)):
     row = patient_sheet.iloc[i]
     patient_id = row['Patient_ID']
     patient_subID = row['Patient_subID']
@@ -49,91 +49,112 @@ for i in range(0,2):# len(patient_sheet)):
     save_folder_case = os.path.join(main_path,'simulation', patient_id,patient_subID)
     ff.make_folder([os.path.dirname(save_folder_case), save_folder_case])
 
-    noise_file = ff.find_all_target_files(['*/recon_noise.nii.gz'],save_folder_case)
-    for n in noise_file:
-        os.remove(n)
+    # for dose factor in range 0.30-0.9 with step 0.05
+    possion_hann_dose_range = [0.60,0.80]
+    gaussian_custom_dose_range = [0.030,0.045]
 
-    # # for dose factor in range 0.30-0.9 with step 0.05
-    # for dose_factor in np.arange(0.05, 0.16, 0.05):
+    for noise_type in ['possion', 'gaussian']:
     
-    #     # important
-    #     cp.cuda.Device(0).use()
-    #     ct_projector.set_device(0)
+        for k in np.arange(0,2):
+            if noise_type == 'possion':
+                dose_factor = np.random.uniform(possion_hann_dose_range[0],possion_hann_dose_range[1] + 1e-8)
+            elif noise_type == 'gaussian':
+                dose_factor = np.random.uniform(gaussian_custom_dose_range[0],gaussian_custom_dose_range[1] + 1e-8)
+            print('dose factor: ', dose_factor)
+            # important
+            cp.cuda.Device(0).use()
+            ct_projector.set_device(0)
 
-    #     # img file
-    #     img_file = os.path.join(main_path,'fixedCT',patient_id,patient_subID,'img_xyz5mm_thinslice.nii.gz')
+            # img file
+            img_file = os.path.join(main_path,'fixedCT',patient_id,patient_subID,'img_thinslice.nii.gz')
 
-    #     # load img
-    #     img,spacing,img_affine = ct.basic_image_processing(img_file)
-    #     print('img shape, min, max: ', img.shape, np.min(img), np.max(img))
-    #     print('spacing: ', spacing)
+            # load img
+            img,spacing,img_affine = ct.basic_image_processing(img_file)
+            print('img shape, min, max: ', img.shape, np.min(img), np.max(img))
+            print('spacing: ', spacing)
 
-    #     # define projectors
-    #     img = img[np.newaxis, ...]
-    #     print('image shape: ', img.shape)
-    #     projector = ct.define_forward_projector(img,spacing,total_view = 1400)
-    #     fbp_projector = ct.backprojector(img,spacing)
+            # define projectors
+            img = img[np.newaxis, ...]
+            print('image shape: ', img.shape)
+            projector = ct.define_forward_projector(img,spacing,total_view = 1440)
+            fbp_projector = ct.backprojector(img,spacing)
 
-    #     # FP
-    #     # set angles
-    #     angles = ct.get_angles_zc(1400, 360 ,0)
-    #     proj = ct.fp_static(img,angles,projector, geometry = 'fan')
+            # FP
+            # set angles
+            angles = ct.get_angles_zc(1400, 360 ,0)
+            proj = ct.fp_static(img,angles,projector, geometry = 'fan')
 
-    #     # add noise
-    #     proj_noise = ct.add_poisson_noise(proj, N0=1000000, dose_factor=dose_factor) - proj
+            # add noise
+            if noise_type[0:2] == 'po':
+                # Poisson noise
+                proj_noise = ct.add_poisson_noise(proj, N0=1000000, dose_factor=dose_factor) - proj
+            elif noise_type[0:2] == 'ga':
+                proj_noise = ct.add_gaussian_noise(proj, N0=1000000, dose_factor=dose_factor) - proj
 
-    #     # recon
-    #     cuangles = cp.array(angles, cp.float32, order = 'C')
-    #     # filter
-    #     fprj_noise = numpy_fan.ramp_filter(fbp_projector, proj_noise, filter_type='hann')
+            # recon
+            cuangles = cp.array(angles, cp.float32, order = 'C')
 
-    #     # backprojection
-    #     projector.set_backprojector(ct_fan.distance_driven_bp, angles=cuangles, is_fbp=True)
-    #     cufprj_noise= cp.array(fprj_noise, cp.float32, order = 'C')
-    #     curecon_noise = projector.bp(cufprj_noise)
-    #     recon_noise = curecon_noise.get()
-    #     recon_noise = recon_noise[:,0,...]
+            # filter
+            if noise_type[0:2] == 'po':
+                # hann filter
+                fprj_noise = numpy_fan.ramp_filter(fbp_projector, proj_noise, filter_type='hann')
+            elif noise_type[0:2] == 'ga':
+                # custom filter
+                custom_filter_final = ct.load_custom_filter(proj_noise, projector)
+                proj_noise_copy = np.copy(proj_noise, 'C')
+   
+                fprjs = np.fft.fft(proj_noise_copy, len(custom_filter_final), axis=-1)
+                fprjs = fprjs * custom_filter_final
+                fprjs = np.fft.ifft(fprjs, axis=-1)[..., :proj_noise_copy.shape[-1]]
+                fprjs = fprjs.real.astype(np.float32) * np.pi / len(custom_filter_final) / 2
+                fprj_noise = np.copy(fprjs, 'C')
 
-    #     # add original img
-    #     # recon_noise = recon_noise /0.019 * 1000 - 1024 
-    #     # recon_original = img[0,...] /0.019 * 1000 - 1024
-    #     recon = recon_noise + img[0,...]
-    #     recon = recon /0.019 * 1000 - 1024
-    #     recon_noise = recon_noise /0.019 * 1000 
+            # backprojection
+            projector.set_backprojector(ct_fan.distance_driven_bp, angles=cuangles, is_fbp=True) 
+            cufprj_noise= cp.array(fprj_noise, cp.float32, order = 'C')
+            curecon_noise = projector.bp(cufprj_noise)
+            recon_noise = curecon_noise.get()
+            recon_noise = recon_noise[:,0,...]
+
+            # add original img
+            # recon_noise = recon_noise /0.019 * 1000 - 1024 
+            # recon_original = img[0,...] /0.019 * 1000 - 1024
+            recon = recon_noise + img[0,...]
+            recon = recon /0.019 * 1000 - 1024
+            recon_noise = recon_noise /0.019 * 1000 
 
 
-    #     save_folder = os.path.join(save_folder_case, 'possion_dose' + str(dose_factor))
-    #     ff.make_folder([save_folder])
+            save_folder = os.path.join(save_folder_case, noise_type +'_random'+str(k+1))#+ '_dose_' + str(dose_factor))
+            ff.make_folder([save_folder])
 
-    #     # save recon
-    #     recon_nb_image = np.rollaxis(recon,0,3)
-    #     recon_nb_image = recon_nb_image[:,:,recon_nb_image.shape[-1]//2 - 25: recon_nb_image.shape[-1]//2 + 25]
-    #     nb.save(nb.Nifti1Image(recon_nb_image,img_affine), os.path.join(save_folder,'recon.nii.gz'))
-    #     recon_noise_image = np.rollaxis(recon_noise,0,3)
-    #     recon_noise_image = recon_noise_image[:,:,recon_noise_image.shape[-1]//2 - 25: recon_noise_image.shape[-1]//2 + 25]
-    #     nb.save(nb.Nifti1Image(recon_noise_image,img_affine), os.path.join(save_folder,'recon_noise.nii.gz'))
-    #     # recon_original_image = recon_nb_image - recon_noise_image
-    #     # nb.save(nb.Nifti1Image(recon_original_image,img_affine), os.path.join(save_folder,'recon_original.nii.gz'))
+            # save recon
+            recon_nb_image = np.rollaxis(recon,0,3)
+            # recon_nb_image = recon_nb_image[:,:,recon_nb_image.shape[-1]//2 - 25: recon_nb_image.shape[-1]//2 + 25]
+            nb.save(nb.Nifti1Image(recon_nb_image,img_affine), os.path.join(save_folder,'recon.nii.gz'))
+            # recon_noise_image = np.rollaxis(recon_noise,0,3)
+            # nb.save(nb.Nifti1Image(recon_noise_image,img_affine), os.path.join(save_folder,'recon_noise.nii.gz'))
+            # recon_original_image = recon_nb_image - recon_noise_image
+            # nb.save(nb.Nifti1Image(recon_original_image,img_affine), os.path.join(save_folder,'recon_original.nii.gz'))
         
 
-    # # # CNR range: 5-8.6, mean+std = 6.6+-0.7, [6.1,6.9]
-    # # # background noise range: 4-22.8, mean+std = 10.5+-3, [8.8, 11.9]
+    # # CNR range: 5-8.6, mean+std = 6.6+-0.7, [6.1,6.9]
+    # # background noise range: 4-22.8, mean+std = 10.5+-3, [8.8, 11.9]
 
-    # # # check CNR
-    # # # put threshold [-100,100]
-    # # img_cutoff = Data_processing.cutoff_intensity(recon_nb_image, cutoff_low=-100, cutoff_high=100)
-    # # print('min:', np.min(img_cutoff), 'max:', np.max(img_cutoff))
-    # # size = img_cutoff.shape
+    # # check CNR
+    # # put threshold [-100,100]
+    # img_cutoff = Data_processing.cutoff_intensity(recon_nb_image, cutoff_low=-100, cutoff_high=100)
+    # print('min:', np.min(img_cutoff), 'max:', np.max(img_cutoff))
+    # size = img_cutoff.shape
 
-    # # # calculate CNR
-    # # a = img_cutoff[size[0]//2-50:size[0]//2+50,size[1]//2-50:size[1]//2+50,size[2]//2 -50 :   size[2]//2+50]
-    # # CNR = 100/np.std(a[ (a> 0) & (a < 100)])
-    # # print('CNR: ', CNR)
+    # # calculate CNR
+    # a = img_cutoff[size[0]//2-50:size[0]//2+50,size[1]//2-50:size[1]//2+50,size[2]//2 -50 :   size[2]//2+50]
+    # CNR = 100/np.std(a[ (a> 0) & (a < 100)])
+    # print('CNR: ', CNR)
 
-    # # # check background noise
-    # # region = recon_nb_image[size[0]-30: size[0], size[1] - 30: size[1], size[2]//2-10:size[2]//2+10]
-    # # background_std = np.std(region[region < 0])
-    # # print('background noise: ', background_std)
+    # # check background noise
+    # region = recon_nb_image[size[0]-30: size[0], size[1] - 30: size[1], size[2]//2-10:size[2]//2+10]
+    # background_std = np.std(region[region < 0])
+    # print('background noise: ', background_std)
 
 
 

@@ -44,7 +44,7 @@ def main():
     plt.plot(frl_filter)
     plt.plot(custom_filter)
     plt.plot(ratio)
-    plt.plot(ratio_fix)
+    plt.plot(ratio_fix) 
 
     ratio_fix.tofile(os.path.join(input_dir, 'additional_bone_kernel'))
 

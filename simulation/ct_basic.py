@@ -151,8 +151,38 @@ def add_poisson_noise(prj: np.ndarray, N0: float, dose_factor: float):
 
         # Convert back to log domain
         prj_noisy = -np.log(I_noisy / (N0 * dose_factor))
-        print('doing poisson noise')
 
         return prj_noisy.astype(np.float32)
 
     return prj.astype(np.float32)
+
+def add_gaussian_noise(prj: np.ndarray, N0: float, dose_factor: float):
+
+    # add noise
+    if N0 > 0 and dose_factor < 1:
+        prj = prj + np.sqrt((1 - dose_factor) / dose_factor * np.exp(prj) / N0) * np.random.normal(size=prj.shape)
+        prj = prj.astype(np.float32)
+
+    return prj
+
+def load_custom_filter(proj,projector):
+    # load custom filter
+    custom_filter = np.fromfile(os.path.join('/mnt/camca_NAS/denoising/Data', 'softTissueKernel_65'), np.float32)
+    nu = proj.shape[-1]
+    du = projector.du
+
+    rl_filter = np.zeros([2 * nu - 1], np.float32)
+    k = np.arange(len(rl_filter)) - (nu - 1)
+    for i in range(len(rl_filter)):
+        if k[i] == 0:
+            rl_filter[i] = 1 / (4 * du * du)
+        elif k[i] % 2 != 0:
+            rl_filter[i] = -1 / (np.pi * np.pi * k[i] * k[i] * du * du)
+    frl_filter = np.fft.fft(rl_filter, len(custom_filter))
+    frl_filter = np.abs(frl_filter)
+
+    frl_filter = frl_filter * len(frl_filter) / proj.shape[1] * du * 2
+
+    custom_filter_final = frl_filter * custom_filter
+
+    return custom_filter_final
