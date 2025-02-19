@@ -4,12 +4,42 @@ import os
 from skimage.measure import block_reduce
 from scipy import ndimage
 from dipy.align.reslice import reslice
-import Diffusion_motion_field.functions_collection as ff
+import Diffusion_denoising_thin_slice.functions_collection as ff
 
+# function: histogram equalization
+def equalize_histogram(bins, hist, weight):
+    '''
+    Equalize the histogram such that the cumulative distribution function is linear.
+    '''
+    # normalized cdf
+    cdf = np.cumsum(hist) / np.sum(hist)
+
+    # target cdf 
+    cdf_target = np.linspace(0, 1, len(cdf))
+
+    bins_mapped = np.interp(cdf, cdf_target, bins)
+
+    # weight the original and the mapped bins
+    bins_mapped = weight * bins_mapped + (1 - weight) * bins
+
+    return bins_mapped
+
+def apply_transfer_to_img(img: np.array, bins: np.array, bins_mapped: np.array, reverse=False):
+    '''
+    Apply the transfer function to the image.
+    The value outside the transfer range should be preserved.
+    '''
+    if reverse:
+        bins, bins_mapped = bins_mapped, bins
+
+    mask = (img > bins[0]) & (img < bins[-1])
+    img_mapped = np.interp(img.astype(np.float32), bins, bins_mapped)
+    img_mapped[~mask] = img[~mask]
+
+    return img_mapped
 
 def crop_or_pad(array, target, value):
     # Pad each axis to at least the target.
-
     margin = target - np.array(array.shape)
     padding = [(0, max(x, 0)) for x in margin]
     array = np.pad(array, padding, mode="constant", constant_values=value)
