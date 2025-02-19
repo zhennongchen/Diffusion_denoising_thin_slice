@@ -165,24 +165,24 @@ def add_gaussian_noise(prj: np.ndarray, N0: float, dose_factor: float):
 
     return prj
 
-def load_custom_filter(proj,projector):
-    # load custom filter
-    custom_filter = np.fromfile(os.path.join('/mnt/camca_NAS/denoising/Data', 'softTissueKernel_65'), np.float32)
-    nu = proj.shape[-1]
-    du = projector.du
+# def load_custom_filter(proj,projector):
+#     # load custom filter
+#     custom_filter = np.fromfile(os.path.join('/mnt/camca_NAS/denoising/Data', 'softTissueKernel_65'), np.float32)
+#     nu = proj.shape[-1]
+#     du = projector.du
 
-    rl_filter = np.zeros([2 * nu - 1], np.float32)
-    k = np.arange(len(rl_filter)) - (nu - 1)
-    for i in range(len(rl_filter)):
-        if k[i] == 0:
-            rl_filter[i] = 1 / (4 * du * du)
-        elif k[i] % 2 != 0:
-            rl_filter[i] = -1 / (np.pi * np.pi * k[i] * k[i] * du * du)
-    frl_filter = np.fft.fft(rl_filter, len(custom_filter))
-    frl_filter = np.abs(frl_filter)
+#     rl_filter = np.zeros([2 * nu - 1], np.float32)
+#     k = np.arange(len(rl_filter)) - (nu - 1)
+#     for i in range(len(rl_filter)):
+#         if k[i] == 0:
+#             rl_filter[i] = 1 / (4 * du * du)
+#         elif k[i] % 2 != 0:
+#             rl_filter[i] = -1 / (np.pi * np.pi * k[i] * k[i] * du * du)
+#     frl_filter = np.fft.fft(rl_filter, len(custom_filter))
+#     frl_filter = np.abs(frl_filter)
 
-    frl_filter = frl_filter * len(frl_filter) / proj.shape[1] * du * 2
+#     frl_filter = frl_filter * len(frl_filter) / proj.shape[1] * du * 2
 
-    custom_filter_final = frl_filter * custom_filter
+#     custom_filter_final = frl_filter * custom_filter
 
-    return custom_filter_final
+#     return custom_filter_final

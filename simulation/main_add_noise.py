@@ -51,11 +51,12 @@ for i in range(0, len(patient_sheet)):
 
     # for dose factor in range 0.30-0.9 with step 0.05
     possion_hann_dose_range = [0.60,0.80]
-    gaussian_custom_dose_range = [0.030,0.045]
+    gaussian_custom_dose_range = [0.085,0.1]
 
-    for noise_type in ['possion', 'gaussian']:
+    for noise_type in ['possion','gaussian']:
     
-        for k in np.arange(0,2):
+        for k in range(0,3):
+            # dose_factor = round(dose_factor,3)
             if noise_type == 'possion':
                 dose_factor = np.random.uniform(possion_hann_dose_range[0],possion_hann_dose_range[1] + 1e-8)
             elif noise_type == 'gaussian':
@@ -81,7 +82,7 @@ for i in range(0, len(patient_sheet)):
 
             # FP
             # set angles
-            angles = ct.get_angles_zc(1400, 360 ,0)
+            angles = ct.get_angles_zc(1440, 360 ,0)
             proj = ct.fp_static(img,angles,projector, geometry = 'fan')
 
             # add noise
@@ -100,13 +101,21 @@ for i in range(0, len(patient_sheet)):
                 fprj_noise = numpy_fan.ramp_filter(fbp_projector, proj_noise, filter_type='hann')
             elif noise_type[0:2] == 'ga':
                 # custom filter
-                custom_filter_final = ct.load_custom_filter(proj_noise, projector)
+                
+                custom_filter = np.fromfile(os.path.join('/mnt/camca_NAS/denoising/Data', 'softTissueKernel_65'), np.float32)
+                filter_len = 2048
+                new_filter = custom_filter[:len(custom_filter) // 2]
+    
+                custom_filter = np.zeros([filter_len], np.float32)
+                custom_filter[:len(new_filter)] = new_filter
+                custom_filter[len(custom_filter) // 2:] = custom_filter[len(custom_filter) // 2:0:-1]
+    
                 proj_noise_copy = np.copy(proj_noise, 'C')
    
-                fprjs = np.fft.fft(proj_noise_copy, len(custom_filter_final), axis=-1)
-                fprjs = fprjs * custom_filter_final
+                fprjs = np.fft.fft(proj_noise_copy, len(custom_filter), axis=-1)
+                fprjs = fprjs * custom_filter
                 fprjs = np.fft.ifft(fprjs, axis=-1)[..., :proj_noise_copy.shape[-1]]
-                fprjs = fprjs.real.astype(np.float32) * np.pi / len(custom_filter_final) / 2
+                fprjs = fprjs.real.astype(np.float32) * np.pi / len(custom_filter) / 2
                 fprj_noise = np.copy(fprjs, 'C')
 
             # backprojection
@@ -124,7 +133,7 @@ for i in range(0, len(patient_sheet)):
             recon_noise = recon_noise /0.019 * 1000 
 
 
-            save_folder = os.path.join(save_folder_case, noise_type +'_random'+str(k+1))#+ '_dose_' + str(dose_factor))
+            save_folder = os.path.join(save_folder_case, noise_type +'_random_' + str(k))
             ff.make_folder([save_folder])
 
             # save recon

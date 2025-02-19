@@ -172,6 +172,7 @@ def main(args):
     if custom_filter is None:
         fprjs = ct_para.ramp_filter(projector, prjs, args.filter)
     else:
+        # 让filter的两边保持对称
         fprjs = np.fft.fft(prjs, len(custom_filter), axis=-1)
         fprjs = fprjs * custom_filter
         fprjs = np.fft.ifft(fprjs, axis=-1)[..., :prjs.shape[-1]]
