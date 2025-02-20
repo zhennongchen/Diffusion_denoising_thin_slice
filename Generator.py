@@ -56,6 +56,8 @@ class Dataset_2D(Dataset):
         random_pick_slice,
         slice_range, # None or [a,b]
 
+        supervision, # supervised or unsupervised
+
         histogram_equalization,
         background_cutoff, 
         maximum_cutoff,
@@ -72,6 +74,8 @@ class Dataset_2D(Dataset):
         self.num_slices_per_image = num_slices_per_image
         self.random_pick_slice = random_pick_slice
         self.slice_range = slice_range
+
+        self.supervision = supervision
 
         self.histogram_equalization = histogram_equalization
         self.background_cutoff = background_cutoff
@@ -130,34 +134,48 @@ class Dataset_2D(Dataset):
         condition_file = self.condition_list[f]
         # print('condition file is: ', condition_file, ' while current condition file is: ', self.current_condition_file)
 
-        if x0_filename != self.current_x0_file:
-            x0_img = self.load_file(x0_filename)
-            self.current_x0_file = x0_filename
-            self.current_x0_data = np.copy(x0_img)
+        if self.supervision == 'supervised': # in unsupervised case, we do not need to load the x0 file since we don't have clean image
+            # print('we have x0 since we have clean image')
+            if x0_filename != self.current_x0_file:
+                x0_img = self.load_file(x0_filename)
+                self.current_x0_file = x0_filename
+                self.current_x0_data = np.copy(x0_img)
 
         if condition_file != self.current_condition_file:
-            print('it is a new case, load the file')
+            # print('it is a new case, load the file')
             condition_img = self.load_file(condition_file)
             self.current_condition_file = condition_file
             self.current_condition_data = np.copy(condition_img)
 
+            if self.supervision == 'unsupervised':
+                self.current_x0_data = np.copy(self.current_condition_data)
+                # print('in unsupervised case, current x0 data is: ', self.current_x0_data.shape)
+
             # define a list of random slice numbers
             if self.slice_range == None:
-                total_slice_range = [0,self.current_condition_data.shape[2]]
+                total_slice_range = [0,self.current_condition_data.shape[2]] if self.supervision == 'supervised' else [0 + 1,self.current_condition_data.shape[2]-1]
             else:
                 total_slice_range = self.slice_range
-            print('in this condition case, total slice range is: ', total_slice_range)
+            # print('in this condition case, total slice range is: ', total_slice_range)
             if self.random_pick_slice == False:
                 self.slice_index_list = np.arange(total_slice_range[0], total_slice_range[1])
                 self.slice_index_list = self.slice_index_list[:self.num_slices_per_image]
             else:
                 self.slice_index_list = np.random.permutation(np.arange(total_slice_range[0], total_slice_range[1]))[:self.num_slices_per_image]
-            print('in this condition case, slice index list is: ', self.slice_index_list)
+            # print('in this condition case, slice index list is: ', self.slice_index_list)
 
         # pick the slice
+        # print('pick the slice: ', self.slice_index_list[s])
         s = self.slice_index_list[s]
-        x0_image_data = np.copy(self.current_x0_data)[:,:,s]
-        condition_image_data =np.copy(self.current_condition_data)[:,:,s]
+        x0_image_data = np.copy(self.current_x0_data)[:,:,s] # we have clean data
+
+        if self.supervision == 'supervised':
+            condition_image_data = np.copy(self.current_condition_data)[:,:,s]
+        else:
+            condition_image_data1 = np.copy(self.current_condition_data)[:,:,s-1]
+            condition_image_data2 = np.copy(self.current_condition_data)[:,:,s+1]
+            condition_image_data = np.stack([condition_image_data1, condition_image_data2], axis = -1)
+            # print('shape of condition image data: ', condition_image_data.shape)
 
         # augmentation
         if self.augment == True:
@@ -167,9 +185,14 @@ class Dataset_2D(Dataset):
                 condition_image_data, _ = random_rotate(condition_image_data, z_rotate_degree = z_rotate_degree, order = 1)
                 condition_image_data, _, _ = random_translate(condition_image_data, x_translate = x_translate, y_translate = y_translate)
                 # print('augment : z_rotate_degree, x_translate, y_translate: ', z_rotate_degree, x_translate, y_translate)
+        
             
         x0_image_data = torch.from_numpy(x0_image_data).unsqueeze(0).float()
-        condition_image_data = torch.from_numpy(condition_image_data).unsqueeze(0).float()
+        if self.supervision == 'supervised':
+            condition_image_data = torch.from_numpy(condition_image_data).unsqueeze(0).float()
+        else:
+            condition_image_data = np.transpose(condition_image_data, (2,0,1))
+            condition_image_data = torch.from_numpy(condition_image_data).float()
 
         # print('shape of x0 image data: ', x0_image_data.shape, ' and condition image data: ', condition_image_data.shape)
         return x0_image_data, condition_image_data

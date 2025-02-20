@@ -7,7 +7,7 @@ class Build():
     def __init__(self,file_list):
         self.a = 1
         self.file_list = file_list
-        self.data = pd.read_excel(file_list, dtype = {'PatientID': str, 'AccessionNumber': str})
+        self.data = pd.read_excel(file_list, dtype = {'Patient_ID': str, 'Patient_subID': str})
 
     def __build__(self,batch_list):
         for b in range(len(batch_list)):

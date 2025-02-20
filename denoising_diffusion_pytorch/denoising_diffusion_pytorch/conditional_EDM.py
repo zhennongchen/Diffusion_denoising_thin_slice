@@ -28,16 +28,6 @@ def default(val, d):
 def log(t, eps = 1e-20):
     return torch.log(t.clamp(min = eps))
 
-# normalization functions
-
-# def normalize_to_neg_one_to_one(img):
-#     return img * 2 - 1
-
-# def unnormalize_to_zero_to_one(t):
-#     return (t + 1) * 0.5
-
-# main class
-
 class EDM(nn.Module):  ### both 2D and 3D
     def __init__(
         self,
@@ -285,6 +275,7 @@ class Trainer(object):
         train_batch_size,
 
         *,
+        accum_iter = None,
         train_num_steps = 10000, # total training epochs
         results_folder = None,
         train_lr = 1e-4,
@@ -320,6 +311,7 @@ class Trainer(object):
         # sampling and training hyperparameters
         self.batch_size = train_batch_size
         self.train_num_steps = train_num_steps
+        self.accum_iter = accum_iter
 
         # dataset and dataloader
         self.ds = generator_train
@@ -339,9 +331,6 @@ class Trainer(object):
 
 
         # for logging results in a folder periodically
-        # EMA:
-        # The purpose of using an EMA is to stabilize and improve the performance of a model during training. It achieves this by maintaining a smoothed version of the model's parameters, which reduces the impact of noise or fluctuations in the training process.
-        #Typically, during training, you will update both the original model and the EMA model, but when you want to evaluate or make predictions, you would use the EMA model because it provides a more stable representation of the model's knowledge. This is especially useful in tasks like generative modeling, where you want to generate high-quality samples from the model.
         if self.accelerator.is_main_process:
             self.ema = EMA(diffusion_model, beta = ema_decay, update_every = ema_update_every)
             self.ema.to(self.device)
@@ -405,11 +394,6 @@ class Trainer(object):
             self.step = start_step
 
 
-        # new_lr = 9.5e-5
-        # for param_group in self.opt.param_groups:
-        #     param_group['lr'] = new_lr
-        # self.scheduler.step()
-
         self.scheduler.step_size = 1
         val_loss = np.inf
         training_log = []
@@ -423,31 +407,29 @@ class Trainer(object):
                 count = 0
                 # load data
                 for batch in self.dl:
-                    self.opt.zero_grad()
-                    if self.conditional_diffusion:
-                        batch_x0, batch_condition = batch
-                        data_x0 = batch_x0.to(device)
-                        data_condition = batch_condition.to(device)
-                        with self.accelerator.autocast():
-                            loss = self.model(data_x0, data_condition )   # loss is 
-                    else:
-                        data_x0 = batch.to(device)
-                        with self.accelerator.autocast():
-                            loss = self.model(data_x0)   # loss is mse
+                    if count == 0 or count % self.accum_iter == 0 or count == len(self.dl) - 1 or count == len(self.dl):
+                        self.opt.zero_grad()
+                    
+                    batch_x0, batch_condition = batch
+                    data_x0 = batch_x0.to(device)
+                    data_condition = batch_condition.to(device) if self.conditional_diffusion else None
+
+                    with self.accelerator.autocast():
+                        loss = self.model(images = data_x0, condition = data_condition)
+                    
+                    if count % self.accum_iter == 0 or count == len(self.dl) - 1 or count == len(self.dl):
+                        self.accelerator.backward(loss)
+                        accelerator.wait_for_everyone()
+                        accelerator.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
+                        self.opt.step()
 
                     average_loss.append(loss.item())
                     count += 1
-                    if count % 300 == 0:
-                        print('batch count: ', count, 'loss: ', loss.item())
-
-                    self.accelerator.backward(loss)
-                    self.opt.step()
 
                 average_loss = sum(average_loss) / len(average_loss)
                 pbar.set_description(f'average loss: {average_loss:.4f}')
  
                 accelerator.wait_for_everyone()
-                accelerator.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
                
                 self.step += 1
 
@@ -469,9 +451,9 @@ class Trainer(object):
                         for batch in self.dl_val:
                             batch_x0, batch_condition = batch
                             data_x0 = batch_x0.to(device)
-                            data_condition = batch_condition.to(device)
+                            data_condition = batch_condition.to(device) if self.conditional_diffusion else None
                             with self.accelerator.autocast():
-                                loss = self.model(data_x0, data_condition )
+                                loss = self.model(images = data_x0, condition = data_condition)
                             val_loss.append(loss.item())
                         val_loss = sum(val_loss) / len(val_loss)
                         print('validation loss: ', val_loss)
@@ -479,7 +461,7 @@ class Trainer(object):
 
                 # save the training log
                 training_log.append([self.step,average_loss, self.scheduler.get_last_lr()[0], val_loss])
-                df = pd.DataFrame(training_log,columns = ['iteration','average_loss','learning_rate', 'validation_loss'])
+                df = pd.DataFrame(training_log,columns = ['iteration','learning_rate','training_loss','validation_loss'])
                 log_folder = os.path.join(os.path.dirname(self.results_folder),'log');ff.make_folder([log_folder])
                 df.to_excel(os.path.join(log_folder, 'training_log.xlsx'),index=False)
 
@@ -522,8 +504,8 @@ class Sampler(object):
 
         self.generator = generator
         dl = DataLoader(self.generator, batch_size = self.batch_size, shuffle = False, pin_memory = True, num_workers = 0)# cpu_count())
-        self.bins = np.load('/mnt/camca_NAS/diffusion_ct_motion/data/histogram_equalization/bins.npy')
-        self.bins_mapped = np.load('/mnt/camca_NAS/diffusion_ct_motion/data/histogram_equalization/bins_mapped.npy')         
+        self.bins = np.load('/mnt/camca_NAS/denoising/Data/histogram_equalization/bins.npy')
+        self.bins_mapped = np.load('/mnt/camca_NAS/denoising/Data/histogram_equalization/bins_mapped.npy')  
 
         self.dl = dl
         self.cycle_dl = cycle(dl)
@@ -542,82 +524,10 @@ class Sampler(object):
 
         self.ema.load_state_dict(data["ema"])
 
-    def sample_2D_w_trained_model(self, trained_model_filename, ground_truth_image_file, motion_image_file, save_file, slice_range, save_gt_motion = None, save_samples = False, background_cutoff = None, maximum_cutoff = None,  normalize_factor = 1000):
-     
-        self.load_model(trained_model_filename)  
+    
+    def sample_2D(self, trained_model_filename, gt_img):
         
-        device = self.device
-
-        self.ema.ema_model.eval()
-        # check whether model is on GPU:
-        print('model device: ', next(self.ema.ema_model.parameters()).device)
-
-        final_image = np.zeros([self.image_size[0], self.image_size[1],self.generator.num_slices])
-        # define run iterations
-        if self.generator.num_slices % self.batch_size == 0:
-            run_iterations = self.generator.num_slices // self.batch_size
-        else:
-            run_iterations = self.generator.num_slices // self.batch_size + 1
-
-        # load gt
-        gt = nb.load(ground_truth_image_file)
-        gt_img = gt.get_fdata()
-        gt_img = gt_img[:,:,slice_range[0]: slice_range[1]]
-        gt_img = Data_processing.cutoff_intensity(gt_img, cutoff_low = background_cutoff, cutoff_high = maximum_cutoff)
-        nb.save(nb.Nifti1Image(gt_img, gt.affine), os.path.join(os.path.dirname(save_file) , 'gt_slice' + str(slice_range[0]) +'to' + str(slice_range[1])+'.nii.gz'))
-
-        # start to run
-        for k in range(0,run_iterations):
-            # find the correct slice number
-            start_slice = k * self.batch_size
-            if (k+1) * self.batch_size > self.generator.num_slices:
-                end_slice = self.generator.num_slices
-            else:
-                end_slice = (k+1) * self.batch_size
-           
-            print('iteration ', k, 'correct slice num: ', start_slice, end_slice)
-       
-            with torch.inference_mode():
-                if self.conditional_diffusion: 
-                    data_correct, data_condition = next(self.cycle_dl)
-
-                    data_condition_save = torch.clone(data_condition).numpy().squeeze()
-                    data_condition_save = np.rollaxis(data_condition_save, 0,3)
-                    print(data_condition_save.shape)
-                    data_condition_save = Data_processing.crop_or_pad(data_condition_save, gt_img.shape, value = np.min(data_condition_save))
-                    data_condition_save = Data_processing.normalize_image(data_condition_save, normalize_factor = normalize_factor, image_max = maximum_cutoff, image_min = background_cutoff, invert = True)
-                    nb.save(nb.Nifti1Image(data_condition_save, gt.affine), os.path.join(os.path.dirname(save_file), 'condition.nii.gz'))
-
-                    data_condition = data_condition.to(device)           
-                        
-                    pred_img = self.ema.ema_model.sample(condition = data_condition, batch_size= end_slice - start_slice )  
-                else:
-                    pred_img = self.ema.ema_model.sample(batch_size= end_slice - start_slice )    
-                         
-            pred_img = pred_img.detach().cpu().numpy().squeeze()
-            if pred_img.ndim == 3:
-                pred_img = np.rollaxis(pred_img, 0,3)
-            if pred_img.ndim == 2:
-                pred_img = np.expand_dims(pred_img, axis = 2)
-            pred_img = Data_processing.normalize_image(pred_img, normalize_factor = normalize_factor, image_max = maximum_cutoff, image_min = background_cutoff, invert = True)
-            final_image[:,:, start_slice : end_slice] = pred_img
-      
-        final_image = Data_processing.crop_or_pad(final_image, gt_img.shape, value = np.min(gt_img))
-        final_image = Data_processing.correct_shift_caused_in_pad_crop_loop(final_image)
-        # save
-        nb.save(nb.Nifti1Image(final_image, gt.affine), save_file)
-        
-        # also save gt and motion for comparision
-        if save_gt_motion:
-            motion_img = nb.load(motion_image_file).get_fdata() 
-            motion_img = motion_img[:,:,slice_range[0]:slice_range[1]]
-            motion_img = Data_processing.cutoff_intensity(motion_img, cutoff_low = background_cutoff, cutoff_high = maximum_cutoff)
-          
-            nb.save(nb.Nifti1Image(motion_img, gt.affine), os.path.join(os.path.dirname(save_file) , 'motion_slice' + str(slice_range[0]) +'to' + str(slice_range[1])+'.nii.gz'))
-
-
-    def sample_3D_w_trained_model(self, trained_model_filename, ground_truth_image_file, motion_image_file,  slice_range, save_file,save_gt_motion = None, portable_CT = False):
-     
+        background_cutoff = self.background_cutoff; maximum_cutoff = self.maximum_cutoff; normalize_factor = self.normalize_factor
         self.load_model(trained_model_filename) 
         
         device = self.device
@@ -626,127 +536,28 @@ class Sampler(object):
         # check whether model is on GPU:
         print('model device: ', next(self.ema.ema_model.parameters()).device)
 
-        gt = nb.load(ground_truth_image_file)
-        gt_img = gt.get_fdata()
-        print('gt image shape: ', gt_img.shape)
-        if portable_CT == False:
-            gt_img = gt_img[:,:,slice_range[0]: slice_range[1]]
-        else:
-            gt_img = gt_img[:,:,slice_range[0] + 10: slice_range[1] + 10]
-        gt_img = Data_processing.cutoff_intensity(gt_img, cutoff_low = self.generator.background_cutoff, cutoff_high = self.generator.maximum_cutoff)
-        nb.save(nb.Nifti1Image(gt_img, gt.affine), os.path.join(os.path.dirname(save_file) , 'gt_slice' + str(slice_range[0]) +'to' + str(slice_range[1])+ '.nii.gz'))
+        pred_img = np.zeros((self.image_size[0], self.image_size[1], gt_img.shape[-1]), dtype = np.float32)
 
         # start to run
         with torch.inference_mode():
-            if self.conditional_diffusion:
+            print('gt_img shape: ', gt_img.shape)
+            for z_slice in range(0,gt_img.shape[-1]):
                 datas = next(self.cycle_dl)
                 data_condition = datas[1]
-                print('data condition shape: ', data_condition.shape)
-                data_condition_save = torch.clone(data_condition).numpy().squeeze() 
-                data_condition_save = Data_processing.crop_or_pad(data_condition_save, [gt_img.shape[0], gt_img.shape[1], data_condition_save.shape[-1]], value = np.min(data_condition_save))
-                data_condition_save = Data_processing.normalize_image(data_condition_save, normalize_factor = self.generator.normalize_factor, image_max = self.generator.maximum_cutoff, image_min = self.generator.background_cutoff, invert = True)
-                if self.generator.histogram_equalization:
-                    data_condition_save = Data_processing.apply_transfer_to_img(data_condition_save, self.bins, self.bins_mapped,reverse = True)
-                nb.save(nb.Nifti1Image(data_condition_save, gt.affine), os.path.join(os.path.dirname(save_file), 'condition.nii.gz'))
+                    
+                data_condition = data_condition.to(device)  if self.conditional_diffusion else None 
+                            
+                pred_img_slice = self.ema.ema_model.sample(condition = data_condition, batch_size = self.batch_size)
+                pred_img_slice = pred_img_slice.detach().cpu().numpy().squeeze()
+                print('pred_img_slice shape: ', pred_img_slice.shape)
+                pred_img[:,:,z_slice] = pred_img_slice
 
-                data_condition = data_condition.to(device)           
-                        
-                pred_img = self.ema.ema_model.sample(condition = data_condition, batch_size = self.batch_size)
-            else:
-                pred_img = self.ema.ema_model.sample(batch_size = self.batch_size)
-                         
-        pred_img = pred_img.detach().cpu().numpy().squeeze()
-        print(pred_img.shape)
-    
-        pred_img = Data_processing.crop_or_pad(pred_img, [gt_img.shape[0], gt_img.shape[1], self.image_size[-1]], value = np.min(gt_img))
-        pred_img = Data_processing.normalize_image(pred_img, normalize_factor = self.generator.normalize_factor, image_max = self.generator.maximum_cutoff, image_min = self.generator.background_cutoff, invert = True)
-        if self.generator.histogram_equalization:
+        
+        pred_img = Data_processing.crop_or_pad(pred_img, [gt_img.shape[0], gt_img.shape[1],gt_img.shape[-1]], value = np.min(gt_img))
+        pred_img = Data_processing.normalize_image(pred_img, normalize_factor = normalize_factor, image_max = maximum_cutoff, image_min = background_cutoff, invert = True)
+        if self.histogram_equalization:
             pred_img = Data_processing.apply_transfer_to_img(pred_img, self.bins, self.bins_mapped,reverse = True)
         pred_img = Data_processing.correct_shift_caused_in_pad_crop_loop(pred_img)
+        print('final image shape: ', pred_img.shape)
       
-        nb.save(nb.Nifti1Image(pred_img, gt.affine), save_file)
-
-
-        # save gt and motion
-        if save_gt_motion:
-            if portable_CT == False:
-                motion_img = nb.load(motion_image_file).get_fdata()[:,:,slice_range[0]: slice_range[1]]
-            else:
-                motion_img = nb.load(motion_image_file).get_fdata()[:,:,slice_range[0] + 10: slice_range[1] + 10]
-   
-            motion_img = Data_processing.cutoff_intensity(motion_img, cutoff_low = self.generator.background_cutoff, cutoff_high = self.generator.maximum_cutoff)
-            motion_img_save = nb.Nifti1Image(motion_img, gt.affine)
-            nb.save(motion_img_save, os.path.join(os.path.dirname(save_file), 'motion_slice' + str(slice_range[0]) +'to' + str(slice_range[1])+ '.nii.gz'))
-
-
-    def sample_patches_w_trained_model(self, trained_model_filename, ground_truth_image_file, motion_image_file,  slice_range, save_folder, patch_origin_list , patch_size, count_matrix,  save_gt_motion = None, portable_CT = False):
-     
-        self.load_model(trained_model_filename) 
-        
-        device = self.device
-
-        self.ema.ema_model.eval()
-        # check whether model is on GPU:
-        print('model device: ', next(self.ema.ema_model.parameters()).device)
-
-        final_image = np.zeros(self.image_size)
-
-        gt = nb.load(ground_truth_image_file)
-        gt_img = gt.get_fdata()
-        if portable_CT == False:
-            gt_img = gt_img[:,:,slice_range[0]: slice_range[1]]
-        else:
-            gt_img = gt_img[:,:,slice_range[0] + 10: slice_range[1] + 10]
-        gt_img = Data_processing.cutoff_intensity(gt_img, cutoff_low = self.generator.background_cutoff, cutoff_high = self.generator.maximum_cutoff)
-        nb.save(nb.Nifti1Image(gt_img, gt.affine), os.path.join(save_folder , 'gt.nii.gz'))
-
-        # start to run
-        final_image = np.zeros(self.image_size)
-        with torch.inference_mode():
-            for k in range(0, len(patch_origin_list)):
-                current_origin = patch_origin_list[k]
-                if self.conditional_diffusion:
-                    datas = next(self.cycle_dl)
-                    data_condition = datas[1]
-                    data_correct = datas[0]
-                    print('data condition shape: ', data_condition.shape)
-                    data_correct_save = torch.clone(data_correct).numpy().squeeze() 
-                    data_condition_save = torch.clone(data_condition).numpy().squeeze()
-                    data_correct_save = Data_processing.normalize_image(data_correct_save, normalize_factor = self.generator.normalize_factor, image_max = self.generator.maximum_cutoff, image_min = self.generator.background_cutoff, invert = True)
-                    data_condition_save = Data_processing.normalize_image(data_condition_save, normalize_factor = self.generator.normalize_factor, image_max = self.generator.maximum_cutoff, image_min = self.generator.background_cutoff, invert = True)
-                    if self.generator.histogram_equalization:
-                        data_correct_save = Data_processing.apply_transfer_to_img(data_correct_save, self.bins, self.bins_mapped,reverse = True)
-                        data_condition_save = Data_processing.apply_transfer_to_img(data_condition_save, self.bins, self.bins_mapped,reverse = True)
-                    nb.save(nb.Nifti1Image(data_correct_save, gt.affine), os.path.join(save_folder, 'gt_origin_'+ str(current_origin[0]) + '_' + str(current_origin[1]) + '.nii.gz'))
-                    nb.save(nb.Nifti1Image(data_condition_save, gt.affine), os.path.join(save_folder, 'condition_origin_'+ str(current_origin[0]) + '_' + str(current_origin[1]) + '.nii.gz'))
-
-                    data_condition = data_condition.to(device)           
-                    pred_img = self.ema.ema_model.sample(condition = data_condition, batch_size = self.batch_size)
-                else:
-                    pred_img = self.ema.ema_model.sample(batch_size = self.batch_size)
-                         
-                pred_img = pred_img.detach().cpu().numpy().squeeze()
-                pred_img = Data_processing.normalize_image(pred_img, normalize_factor = self.generator.normalize_factor, image_max = self.generator.maximum_cutoff, image_min = self.generator.background_cutoff, invert = True)
-                if self.generator.histogram_equalization:
-                    pred_img = Data_processing.apply_transfer_to_img(pred_img, self.bins, self.bins_mapped,reverse = True)
-                nb.save(nb.Nifti1Image(pred_img, gt.affine), os.path.join(save_folder, 'pred_origin_'+ str(current_origin[0]) + '_' + str(current_origin[1]) + '.nii.gz'))
-                print(pred_img.shape)
-
-                final_image[current_origin[0]: (current_origin[0] + patch_size), current_origin[1]: (current_origin[1] + patch_size), slice_range[0]: slice_range[1]] += pred_img
-
-
-        final_image = np.divide(final_image, count_matrix)
-        final_image = Data_processing.crop_or_pad(final_image, [gt_img.shape[0], gt_img.shape[1], self.image_size[-1]], value = np.min(gt_img))
-        final_image = Data_processing.correct_shift_caused_in_pad_crop_loop(final_image)
-      
-        nb.save(nb.Nifti1Image(final_image, gt.affine), os.path.join(save_folder, 'pred.nii.gz'))
-
-        # save gt and motion
-        if save_gt_motion:
-            if portable_CT == False:
-                motion_img = nb.load(motion_image_file).get_fdata()[:,:,slice_range[0]: slice_range[1]]
-            else:
-                motion_img = nb.load(motion_image_file).get_fdata()[:,:,slice_range[0] + 10: slice_range[1] + 10]
-            motion_img = Data_processing.cutoff_intensity(motion_img, cutoff_low = self.generator.background_cutoff, cutoff_high = self.generator.maximum_cutoff)
-            motion_img_save = nb.Nifti1Image(motion_img, gt.affine)
-            nb.save(motion_img_save, os.path.join(save_folder, 'motion.nii.gz'))
+        return pred_img

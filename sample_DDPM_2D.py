@@ -12,11 +12,16 @@ import Diffusion_denoising_thin_slice.Generator as Generator
 ###########
 trial_name = 'supervised_possion_2D'
 problem_dimension = '2D'
-epoch = 80
+epoch = 50
 trained_model_filename = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'models/model-' + str(epoch)+ '.pt')
 save_folder = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'pred_images'); os.makedirs(save_folder, exist_ok=True)
 
 image_size = [512,512]
+
+objective = 'pred_x0'
+timesteps = 1000
+sampling_timesteps = 1000
+eta = 0. # usually use 1.
 
 histogram_equalization = True
 background_cutoff = -1000
@@ -29,7 +34,7 @@ build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_l
 _,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [0,1,2,3]) 
 x0_list = x0_list[0:1]; condition_list = condition_list[0:1]
 
-model = ddpm.Unet3D(
+model = ddpm.Unet(
     problem_dimension = problem_dimension,
     init_dim = 64,
     out_dim = 1,
@@ -43,9 +48,13 @@ model = ddpm.Unet3D(
 diffusion_model = ddpm.GaussianDiffusion(
     model,
     image_size = image_size,
-    num_sample_steps = 1000,
-    clip_or_not = True,
-    clip_range = clip_range,)
+    timesteps = timesteps,           # number of steps
+    sampling_timesteps = sampling_timesteps,    # number of sampling timesteps (using ddim for faster inference [see citation for ddim paper])
+    ddim_sampling_eta = eta,
+    force_ddim = False,
+    objective = objective,
+    clip_or_not = True, 
+    clip_range = clip_range, )
 
 for i in range(0,x0_list.shape[0]):
     patient_id = patient_id_list[i]
@@ -57,13 +66,15 @@ for i in range(0,x0_list.shape[0]):
     print(i,patient_id, patient_subid, random_num)
 
     # get the ground truth image
-    gt_file = os.path.join('/mnt/camca_NAS/denoising/Data/fixedCT', patient_id, patient_subid, 'img_thinslice.nii.gz')
-    gt_img = nb.load(gt_file)
-    affine = gt_img.affine; gt_img = gt_img.get_fdata()
+    gt_img = nb.load(x0_file)
+    affine = gt_img.affine; gt_img = gt_img.get_fdata()[:,:,50:52]
+
+    # get the condition image
+    condition_img = nb.load(condition_file).get_fdata()[:,:,50:52]
 
     # make folders
-    ff.make_folder([os.path.join(save_folder, patient_id), os.path.join(save_folder, patient_id, patient_subid), os.path.join(save_folder, patient_id, patient_subid, 'random_num_' + str(random_num))])
-    save_folder_case = os.path.join(save_folder, patient_id, patient_subid, 'random_num_' + str(random_num), 'epoch' + str(epoch)); os.makedirs(save_folder_case, exist_ok=True)
+    ff.make_folder([os.path.join(save_folder, patient_id), os.path.join(save_folder, patient_id, patient_subid), os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num))])
+    save_folder_case = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)); os.makedirs(save_folder_case, exist_ok=True)
 
     # generator
     generator = Generator.Dataset_2D(
@@ -71,9 +82,9 @@ for i in range(0,x0_list.shape[0]):
         condition_list = np.array([condition_file]),
         image_size = image_size,
 
-        num_slices_per_image = gt_img.shape[-1],
+        num_slices_per_image = 2,#gt_img.shape[-1],
         random_pick_slice = False,
-        slice_range = None,
+        slice_range = [50,52],
 
         histogram_equalization = histogram_equalization,
         background_cutoff = background_cutoff,
@@ -88,3 +99,4 @@ for i in range(0,x0_list.shape[0]):
     # save
     nb.save(nb.Nifti1Image(pred_img, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
     nb.save(nb.Nifti1Image(gt_img, affine), os.path.join(save_folder_case, 'gt_img.nii.gz'))
+    nb.save(nb.Nifti1Image(condition_img, affine), os.path.join(save_folder_case, 'condition_img.nii.gz'))

@@ -1204,7 +1204,6 @@ class Trainer(object):
 
         if start_step is not None:
             self.step = start_step
-  
         
         self.scheduler.step_size = 1
         val_loss = np.inf
@@ -1355,6 +1354,7 @@ class Sampler(object):
 
         # start to run
         with torch.inference_mode():
+            print('gt_img shape: ', gt_img.shape)
             for z_slice in range(0,gt_img.shape[-1]):
                 datas = next(self.cycle_dl)
                 data_condition = datas[1]
@@ -1362,7 +1362,7 @@ class Sampler(object):
                 data_condition = data_condition.to(device)  if self.conditional_diffusion else None 
                             
                 pred_img_slice = self.ema.ema_model.sample(condition = data_condition, batch_size = self.batch_size)
-                pred_img_slice = pred_img.detach().cpu().numpy().squeeze()
+                pred_img_slice = pred_img_slice.detach().cpu().numpy().squeeze()
                 print('pred_img_slice shape: ', pred_img_slice.shape)
                 pred_img[:,:,z_slice] = pred_img_slice
 
