@@ -63,6 +63,9 @@ class Dataset_2D(Dataset):
         maximum_cutoff,
         normalize_factor,
 
+        num_patches_per_slice = None,
+        patch_size = None,
+
         shuffle = False,
         augment = False,
         augment_frequency = 0,
@@ -74,6 +77,8 @@ class Dataset_2D(Dataset):
         self.num_slices_per_image = num_slices_per_image
         self.random_pick_slice = random_pick_slice
         self.slice_range = slice_range
+        self.num_patches_per_slice = num_patches_per_slice
+        self.patch_size = patch_size
 
         self.supervision = supervision
 
@@ -95,7 +100,7 @@ class Dataset_2D(Dataset):
 
     def generate_index_array(self):
         np.random.seed()
-        index_array = []
+        index_array = []; index_array_patches = []
         
         if self.shuffle == True:
             f_list = np.random.permutation(self.num_files)
@@ -106,10 +111,20 @@ class Dataset_2D(Dataset):
             s_list = np.arange(self.num_slices_per_image)
             for s in s_list:
                 index_array.append([f, s])
-        return index_array
+                if self.num_patches_per_slice != None:
+                    patch_list = np.arange(self.num_patches_per_slice)
+                    for p in patch_list:
+                        index_array_patches.append([f, s,p])
+        if self.num_patches_per_slice != None:
+            return index_array_patches
+        else:
+            return index_array
 
     def __len__(self):
-        return self.num_files * self.num_slices_per_image
+        if self.num_patches_per_slice != None:
+            return self.num_files * self.num_slices_per_image * self.num_patches_per_slice
+        else:
+            return self.num_files * self.num_slices_per_image
     
 
     def load_file(self, filename):
@@ -127,7 +142,10 @@ class Dataset_2D(Dataset):
         
     def __getitem__(self, index):
         # print('in this geiitem, self.index_array is: ', self.index_array)
-        f,s = self.index_array[index]
+        if self.num_patches_per_slice != None:
+            f,s,p = self.index_array[index]
+        else:
+            f,s = self.index_array[index]
         # print('index is: ', index, ' now we pick file ', f)
         x0_filename = self.img_list[f]
         # print('x0 filename is: ', x0_filename, ' while current x0 file is: ', self.current_x0_file)
@@ -149,7 +167,7 @@ class Dataset_2D(Dataset):
 
             if self.supervision == 'unsupervised':
                 self.current_x0_data = np.copy(self.current_condition_data)
-                # print('in unsupervised case, current x0 data is: ', self.current_x0_data.shape)
+                print('in unsupervised case, current x0 data is: ', self.current_x0_data.shape)
 
             # define a list of random slice numbers
             if self.slice_range == None:
@@ -167,13 +185,27 @@ class Dataset_2D(Dataset):
         # pick the slice
         # print('pick the slice: ', self.slice_index_list[s])
         s = self.slice_index_list[s]
-        x0_image_data = np.copy(self.current_x0_data)[:,:,s] # we have clean data
 
+        # pick the patch:
+        if self.num_patches_per_slice != None:
+            x_shape, y_shape = self.current_condition_data.shape[0], self.current_condition_data.shape[1]
+            random_origin_x, random_origin_y = random.randint(0, x_shape - self.patch_size[0]), random.randint(0, y_shape - self.patch_size[1])
+            # print('x range is: ', random_origin_x, random_origin_x + self.patch_size[0], ' and y range is: ', random_origin_y, random_origin_y + self.patch_size[1])
+
+        x0_image_data = np.copy(self.current_x0_data)[:,:,s] # we have clean data
+        if self.num_patches_per_slice != None:
+            x0_image_data = x0_image_data[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
+            
         if self.supervision == 'supervised':
             condition_image_data = np.copy(self.current_condition_data)[:,:,s]
+            if self.num_patches_per_slice != None:
+                condition_image_data = condition_image_data[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
         else:
             condition_image_data1 = np.copy(self.current_condition_data)[:,:,s-1]
             condition_image_data2 = np.copy(self.current_condition_data)[:,:,s+1]
+            if self.num_patches_per_slice != None:
+                condition_image_data1 = condition_image_data1[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
+                condition_image_data2 = condition_image_data2[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
             condition_image_data = np.stack([condition_image_data1, condition_image_data2], axis = -1)
             # print('shape of condition image data: ', condition_image_data.shape)
 
@@ -200,7 +232,4 @@ class Dataset_2D(Dataset):
     def on_epoch_end(self):
         print('now run on_epoch_end function')
         self.index_array = self.generate_index_array()
-        # self.current_x0_file = None
-        # self.current_x0_data = None
-        # self.current_condition_file = None
-        # self.current_condition_data = None
+    

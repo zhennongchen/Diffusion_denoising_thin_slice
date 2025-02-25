@@ -1088,7 +1088,7 @@ class Trainer(object):
         generator_val,
         train_batch_size,
         *,
-        accum_iter = 10, # gradient accumulation steps
+        accum_iter = 1, # gradient accumulation steps
         train_num_steps = 100000, # total training epochs
         results_folder = None,
         train_lr = 1e-4,
