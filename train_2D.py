@@ -13,12 +13,11 @@ trial_name = 'unsupervised_gaussian_2D'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
-pre_trained_model = None#os.path.join(cg.diffusion_dir,'models','portable_DDPM_patch_3Dmotion_hist_v1', 'models', 'model-9.pt')
-start_step = 0
+pre_trained_model = os.path.join('/mnt/camca_NAS/denoising/models',trial_name, 'models', 'model-44.pt')
+start_step = 44
 image_size = [512,512]
 
 objective = 'pred_x0'
-timesteps = 1000
 
 histogram_equalization = True
 background_cutoff = -1000

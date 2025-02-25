@@ -506,6 +506,10 @@ class Sampler(object):
         dl = DataLoader(self.generator, batch_size = self.batch_size, shuffle = False, pin_memory = True, num_workers = 0)# cpu_count())
         self.bins = np.load('/mnt/camca_NAS/denoising/Data/histogram_equalization/bins.npy')
         self.bins_mapped = np.load('/mnt/camca_NAS/denoising/Data/histogram_equalization/bins_mapped.npy')  
+        self.histogram_equalization = self.generator.histogram_equalization
+        self.background_cutoff = self.generator.background_cutoff
+        self.maximum_cutoff = self.generator.maximum_cutoff
+        self.normalize_factor = self.generator.normalize_factor
 
         self.dl = dl
         self.cycle_dl = cycle(dl)
@@ -560,4 +564,4 @@ class Sampler(object):
         pred_img = Data_processing.correct_shift_caused_in_pad_crop_loop(pred_img)
         print('final image shape: ', pred_img.shape)
       
-        return pred_img
+        return pred_img 
