@@ -1272,7 +1272,7 @@ class Trainer(object):
                     self.model.train(True)
 
                 # save the training log
-                training_log.append([self.step,average_loss, self.scheduler.get_last_lr()[0], val_loss])
+                training_log.append([self.step,self.scheduler.get_last_lr()[0], average_loss, val_loss])
                 df = pd.DataFrame(training_log,columns = ['iteration','learning_rate','training_loss','validation_loss'])
                 log_folder = os.path.join(os.path.dirname(self.results_folder),'log');ff.make_folder([log_folder])
                 df.to_excel(os.path.join(log_folder, 'training_log.xlsx'),index=False)
