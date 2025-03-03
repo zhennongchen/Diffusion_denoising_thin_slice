@@ -718,6 +718,7 @@ class GaussianDiffusion(nn.Module):
 
         assert self.sampling_timesteps <= timesteps
         self.is_ddim_sampling = self.sampling_timesteps < timesteps
+        print('is ddim sampling', self.is_ddim_sampling)
         self.ddim_sampling_eta = ddim_sampling_eta
         self.force_ddim = force_ddim
 

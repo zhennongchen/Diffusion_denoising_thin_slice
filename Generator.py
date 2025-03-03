@@ -180,10 +180,10 @@ class Dataset_2D(Dataset):
                 self.slice_index_list = self.slice_index_list[:self.num_slices_per_image]
             else:
                 self.slice_index_list = np.random.permutation(np.arange(total_slice_range[0], total_slice_range[1]))[:self.num_slices_per_image]
-            # print('in this condition case, slice index list is: ', self.slice_index_list)
+            print('in this condition case, slice index list is: ', self.slice_index_list)
 
         # pick the slice
-        # print('pick the slice: ', self.slice_index_list[s])
+        print('pick the slice: ', self.slice_index_list[s])
         s = self.slice_index_list[s]
 
         # pick the patch:
