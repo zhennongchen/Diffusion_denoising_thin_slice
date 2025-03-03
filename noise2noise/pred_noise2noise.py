@@ -38,7 +38,7 @@ model = noise2noise.Unet2D(
 
 # main
 
-for i in list(range(0, 12+ 1, 3)):#range(0,5):#x0_list.shape[0]):
+for i in list(range(0, 3+ 1, 3)):#range(0,5):#x0_list.shape[0]):
     patient_id = patient_id_list[i]
     patient_subid = patient_subid_list[i]
     random_num = random_num_list[i]
@@ -56,7 +56,7 @@ for i in list(range(0, 12+ 1, 3)):#range(0,5):#x0_list.shape[0]):
 
     # make folders
     ff.make_folder([os.path.join(save_folder, patient_id), os.path.join(save_folder, patient_id, patient_subid), os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num))])
-    save_folder_case = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)); os.makedirs(save_folder_case, exist_ok=True)
+    save_folder_case = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'_5'); os.makedirs(save_folder_case, exist_ok=True)
 
     # generator
     generator = Generator.Dataset_2D(

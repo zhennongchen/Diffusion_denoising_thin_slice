@@ -64,7 +64,7 @@ diffusion_model = ddpm.GaussianDiffusion(
     clip_or_not = True, 
     clip_range = clip_range, )
 
-for i in list(range(0, 6+ 1, 3)):#range(0,1):#x0_list.shape[0]):
+for i in list(range(0, 3+ 1, 3)):#range(0,1):#x0_list.shape[0]):
     patient_id = patient_id_list[i]
     patient_subid = patient_subid_list[i]
     random_num = random_num_list[i]
@@ -82,42 +82,54 @@ for i in list(range(0, 6+ 1, 3)):#range(0,1):#x0_list.shape[0]):
 
     # make folders
     ff.make_folder([os.path.join(save_folder, patient_id), os.path.join(save_folder, patient_id, patient_subid), os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num))])
-    save_folder_case = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)); os.makedirs(save_folder_case, exist_ok=True)
+    # save_folder_case = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'_5'); os.makedirs(save_folder_case, exist_ok=True)
 
     # generator
-    generator = Generator.Dataset_2D(
-        supervision = supervision,
+    # generator = Generator.Dataset_2D(
+    #     supervision = supervision,
 
-        img_list = np.array([x0_file]),
-        condition_list = np.array([condition_file]),
-        image_size = image_size,
+    #     img_list = np.array([x0_file]),
+    #     condition_list = np.array([condition_file]),
+    #     image_size = image_size,
 
-        num_slices_per_image = 20, 
-        random_pick_slice = False,
-        slice_range = [40,60],
+    #     num_slices_per_image = 20, 
+    #     random_pick_slice = False,
+    #     slice_range = [40,60],
 
-        histogram_equalization = histogram_equalization,
-        background_cutoff = background_cutoff,
-        maximum_cutoff = maximum_cutoff,
-        normalize_factor = normalize_factor,)
+    #     histogram_equalization = histogram_equalization,
+    #     background_cutoff = background_cutoff,
+    #     maximum_cutoff = maximum_cutoff,
+    #     normalize_factor = normalize_factor,)
 
-    # sample:
-    sampler = ddpm.Sampler(diffusion_model,generator,batch_size = 1)
+    # # sample:
+    # sampler = ddpm.Sampler(diffusion_model,generator,batch_size = 1)
 
-    pred_img = sampler.sample_2D(trained_model_filename, gt_img)
-    print(pred_img.shape)
+    # pred_img = sampler.sample_2D(trained_model_filename, gt_img)
+    # print(pred_img.shape)
 
-    # if supervision == 'unsupervised':
-    #     pred_img_final = np.zeros(gt_img.shape)
-    #     pred_img_final[:,:,0] = gt_img[:,:,0]
-    #     pred_img_final[:,:,1:pred_img_final.shape[-1]-1] = pred_img[:,:,0:pred_img_final.shape[-1]-2]
-    #     pred_img_final[:,:,-1] = gt_img[:,:,-1]
-    # else:
-    #     pred_img_final = pred_img
+    # # if supervision == 'unsupervised':
+    # #     pred_img_final = np.zeros(gt_img.shape)
+    # #     pred_img_final[:,:,0] = gt_img[:,:,0]
+    # #     pred_img_final[:,:,1:pred_img_final.shape[-1]-1] = pred_img[:,:,0:pred_img_final.shape[-1]-2]
+    # #     pred_img_final[:,:,-1] = gt_img[:,:,-1]
+    # # else:
+    # #     pred_img_final = pred_img
 
-    pred_img_final = pred_img
+    # pred_img_final = pred_img
   
-    # save
-    nb.save(nb.Nifti1Image(pred_img_final, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
-    nb.save(nb.Nifti1Image(gt_img, affine), os.path.join(save_folder_case, 'gt_img.nii.gz'))
-    nb.save(nb.Nifti1Image(condition_img, affine), os.path.join(save_folder_case, 'condition_img.nii.gz'))
+    # # save
+    # nb.save(nb.Nifti1Image(pred_img_final, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
+    # nb.save(nb.Nifti1Image(gt_img, affine), os.path.join(save_folder_case, 'gt_img.nii.gz'))
+    # nb.save(nb.Nifti1Image(condition_img, affine), os.path.join(save_folder_case, 'condition_img.nii.gz'))
+
+    # 
+    save_folder_case = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'final'); os.makedirs(save_folder_case, exist_ok=True)
+    made_predicts = ff.find_all_target_files(['epoch' + str(epoch)+'_*'], os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num)))
+    print(made_predicts)
+
+    predicts_final = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2], len(made_predicts)))
+    for j in range(len(made_predicts)):
+        predicts_final[:,:,:,j] = nb.load(os.path.join(made_predicts[j],'pred_img.nii.gz')).get_fdata()
+    # average across last axis
+    predicts_final = np.mean(predicts_final, axis = -1)
+    nb.save(nb.Nifti1Image(predicts_final, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))

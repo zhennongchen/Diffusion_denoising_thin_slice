@@ -170,10 +170,15 @@ def compare(a, b,  cutoff_low = 0 ,cutoff_high = 1000000, extreme = 5000):
     # # normalized root mean squared error
     # nrmse = rmse / mean_square_value
 
-    # # peak signal-to-noise ratio
-    # psnr = 10 * (math.log10((8191**2) / mse ))
+    # peak signal-to-noise ratio
+    if cutoff_high < 1000:
+        max_value = cutoff_high
+    else:
+        max_value = np.max(b)
+    psnr = 10 * (math.log10((max_value**2) / mse ))
 
-    return mae, mse, rmse, r_rmse, ssim
+    return mae, mse, rmse, r_rmse, ssim,psnr
+
 
 # function: dice
 def np_categorical_dice(pred, truth, k):
