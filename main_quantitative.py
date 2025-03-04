@@ -31,6 +31,10 @@ for i in list(range(0, 3+ 1, 3)):#range(0,1):#x0_list.shape[0]):
     noise2noise_img = nb.load(noise2noise_file).get_fdata()
     noise2noise_img_brain = Data_processing.cutoff_intensity(noise2noise_img, cutoff_low=-100, cutoff_high=100)
 
+    noise2noise_avg_file = os.path.join('/mnt/camca_NAS/denoising/models/noise2noise_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'final_avg/pred_img.nii.gz')
+    noise2noise_avg_img = nb.load(noise2noise_avg_file).get_fdata()
+    noise2noise_avg_img_brain = Data_processing.cutoff_intensity(noise2noise_avg_img, cutoff_low=-100, cutoff_high=100)
+
     ddpm_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_DDPM_gaussian_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch70_1/pred_img.nii.gz')
     ddpm_img = nb.load(ddpm_file).get_fdata()
     ddpm_img_brain = Data_processing.cutoff_intensity(ddpm_img, cutoff_low=-100, cutoff_high=100)
@@ -42,29 +46,33 @@ for i in list(range(0, 3+ 1, 3)):#range(0,1):#x0_list.shape[0]):
     # compare brain region
     mae_brain_motion, _, rmse_brain_motion, _, ssim_brain_motion,psnr_brain_motion = ff.compare(condition_img_brain, gt_img_brain, cutoff_low = 0, cutoff_high = 100)
     mae_brain_n2n, _, rmse_brain_n2n, _, ssim_brain_n2n,psnr_brain_n2n = ff.compare(noise2noise_img_brain, gt_img_brain, cutoff_low = 0, cutoff_high = 100)
+    mae_brain_n2n_avg, _, rmse_brain_n2n_avg, _, ssim_brain_n2n_avg,psnr_brain_n2n_avg = ff.compare(noise2noise_avg_img_brain, gt_img_brain, cutoff_low = 0, cutoff_high = 100)
     mae_brain_ddpm, _, rmse_brain_ddpm, _, ssim_brain_ddpm,psnr_brain_ddpm = ff.compare(ddpm_img_brain, gt_img_brain, cutoff_low = 0, cutoff_high = 100)
     mae_brain_ddpm_avg, _, rmse_brain_ddpm_avg, _, ssim_brain_ddpm_avg,psnr_brain_ddpm_avg = ff.compare(ddpm_avg_img_brain, gt_img_brain, cutoff_low = 0, cutoff_high = 100)
 
     print('motion:', mae_brain_motion, rmse_brain_motion, ssim_brain_motion, psnr_brain_motion)
     print('n2n:', mae_brain_n2n, rmse_brain_n2n, ssim_brain_n2n, psnr_brain_n2n)
+    print('n2n_avg:', mae_brain_n2n_avg, rmse_brain_n2n_avg, ssim_brain_n2n_avg, psnr_brain_n2n_avg)
     print('ddpm:', mae_brain_ddpm, rmse_brain_ddpm, ssim_brain_ddpm, psnr_brain_ddpm)
     print('ddpm_avg:', mae_brain_ddpm_avg, rmse_brain_ddpm_avg, ssim_brain_ddpm_avg, psnr_brain_ddpm_avg)
 
     # compare all 
     mae_motion, _, rmse_motion, _, ssim_motion,psnr_motion = ff.compare(condition_img, gt_img, cutoff_low = -100)
     mae_n2n, _, rmse_n2n, _, ssim_n2n,psnr_n2n = ff.compare(noise2noise_img, gt_img, cutoff_low = -100)
+    mae_n2n_avg, _, rmse_n2n_avg, _, ssim_n2n_avg,psnr_n2n_avg = ff.compare(noise2noise_avg_img, gt_img, cutoff_low = -100)
     mae_ddpm, _, rmse_ddpm, _, ssim_ddpm,psnr_ddpm = ff.compare(ddpm_img, gt_img, cutoff_low = -100)
     mae_ddpm_avg, _, rmse_ddpm_avg, _, ssim_ddpm_avg,psnr_ddpm_avg = ff.compare(ddpm_avg_img, gt_img, cutoff_low = -100)
 
     print('all image:')
     print('motion:', mae_motion, rmse_motion, ssim_motion, psnr_motion)
     print('n2n:', mae_n2n, rmse_n2n, ssim_n2n, psnr_n2n)
+    print('n2n_avg:', mae_n2n_avg, rmse_n2n_avg, ssim_n2n_avg, psnr_n2n_avg)
     print('ddpm:', mae_ddpm, rmse_ddpm, ssim_ddpm, psnr_ddpm)
     print('ddpm_avg:', mae_ddpm_avg, rmse_ddpm_avg, ssim_ddpm_avg, psnr_ddpm_avg)
 
-    results.append([patient_id, patient_subid, random_n, mae_brain_motion, rmse_brain_motion, ssim_brain_motion, psnr_brain_motion, mae_brain_n2n, rmse_brain_n2n, ssim_brain_n2n, psnr_brain_n2n, mae_brain_ddpm, rmse_brain_ddpm, ssim_brain_ddpm, psnr_brain_ddpm, mae_brain_ddpm_avg, rmse_brain_ddpm_avg, ssim_brain_ddpm_avg, psnr_brain_ddpm_avg, mae_motion, rmse_motion, ssim_motion, psnr_motion, mae_n2n, rmse_n2n, ssim_n2n, psnr_n2n, mae_ddpm, rmse_ddpm, ssim_ddpm, psnr_ddpm, mae_ddpm_avg, rmse_ddpm_avg, ssim_ddpm_avg, psnr_ddpm_avg])
+    results.append([patient_id, patient_subid, random_n, mae_brain_motion, rmse_brain_motion, ssim_brain_motion, psnr_brain_motion, mae_brain_n2n, rmse_brain_n2n, ssim_brain_n2n, psnr_brain_n2n, mae_brain_n2n_avg, rmse_brain_n2n_avg, ssim_brain_n2n_avg, psnr_brain_n2n_avg, mae_brain_ddpm, rmse_brain_ddpm, ssim_brain_ddpm, psnr_brain_ddpm, mae_brain_ddpm_avg, rmse_brain_ddpm_avg, ssim_brain_ddpm_avg, psnr_brain_ddpm_avg, mae_motion, rmse_motion, ssim_motion, psnr_motion, mae_n2n, rmse_n2n, ssim_n2n, psnr_n2n, mae_ddpm, rmse_ddpm, ssim_ddpm, psnr_ddpm, mae_ddpm_avg, rmse_ddpm_avg, ssim_ddpm_avg, psnr_ddpm_avg])
 
-    df = pd.DataFrame(results , columns = ['patient_id', 'patient_subid', 'random_num', 'mae_brain_motion', 'rmse_brain_motion', 'ssim_brain_motion', 'psnr_brain_motion', 'mae_brain_n2n', 'rmse_brain_n2n', 'ssim_brain_n2n', 'psnr_brain_n2n', 'mae_brain_ddpm', 'rmse_brain_ddpm', 'ssim_brain_ddpm', 'psnr_brain_ddpm', 'mae_brain_ddpm_avg', 'rmse_brain_ddpm_avg', 'ssim_brain_ddpm_avg', 'psnr_brain_ddpm_avg', 'mae_motion', 'rmse_motion', 'ssim_motion', 'psnr_motion', 'mae_n2n', 'rmse_n2n', 'ssim_n2n', 'psnr_n2n', 'mae_ddpm', 'rmse_ddpm', 'ssim_ddpm', 'psnr_ddpm', 'mae_ddpm_avg', 'rmse_ddpm_avg', 'ssim_ddpm_avg', 'psnr_ddpm_avg'])
+    df = pd.DataFrame(results , columns = ['patient_id', 'patient_subid', 'random_num', 'mae_brain_motion', 'rmse_brain_motion', 'ssim_brain_motion', 'psnr_brain_motion', 'mae_brain_n2n', 'rmse_brain_n2n', 'ssim_brain_n2n', 'psnr_brain_n2n', 'mae_brain_n2n_avg', 'rmse_brain_n2n_avg', 'ssim_brain_n2n_avg', 'psnr_brain_n2n_avg', 'mae_brain_ddpm', 'rmse_brain_ddpm', 'ssim_brain_ddpm', 'psnr_brain_ddpm', 'mae_brain_ddpm_avg', 'rmse_brain_ddpm_avg', 'ssim_brain_ddpm_avg', 'psnr_brain_ddpm_avg', 'mae_motion', 'rmse_motion', 'ssim_motion', 'psnr_motion', 'mae_n2n', 'rmse_n2n', 'ssim_n2n', 'psnr_n2n', 'mae_ddpm', 'rmse_ddpm', 'ssim_ddpm', 'psnr_ddpm', 'mae_ddpm_avg', 'rmse_ddpm_avg', 'ssim_ddpm_avg', 'psnr_ddpm_avg'])
     df.to_excel('/mnt/camca_NAS/denoising/models/unsupervised_DDPM_gaussian_2D/quantitative_results.xlsx', index = False)
 
 
