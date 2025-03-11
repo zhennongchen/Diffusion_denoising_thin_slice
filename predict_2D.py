@@ -21,6 +21,7 @@ save_folder = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'pred_
 image_size = [512,512]
 
 objective = 'pred_x0'
+sampling_timesteps = 1000
 
 histogram_equalization = True
 background_cutoff = -1000
@@ -31,6 +32,7 @@ clip_range = [-1,1]
 ###########
 build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian_local.xlsx'))
 _,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [5]) 
+n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 3)
 # x0_list = x0_list[0:1]; condition_list = condition_list[0:1]
 
 model = ddpm.Unet(
@@ -56,7 +58,7 @@ diffusion_model = ddpm.GaussianDiffusion(
     model,
     image_size = image_size,
     timesteps = 1000,           # number of steps
-    sampling_timesteps = 1000,    # number of sampling timesteps (using ddim for faster inference [see citation for ddim paper])
+    sampling_timesteps = sampling_timesteps,    # number of sampling timesteps (using ddim for faster inference [see citation for ddim paper])
     ddim_sampling_eta = 1.,
     force_ddim = False,
     auto_normalize=False,
@@ -64,72 +66,76 @@ diffusion_model = ddpm.GaussianDiffusion(
     clip_or_not = True, 
     clip_range = clip_range, )
 
-for i in list(range(0, 3+ 1, 3)):#range(0,1):#x0_list.shape[0]):
-    patient_id = patient_id_list[i]
-    patient_subid = patient_subid_list[i]
-    random_num = random_num_list[i]
-    x0_file = x0_list[i]
-    condition_file = condition_list[i]
+for i in range(0, n.shape[0]):
+    patient_id = patient_id_list[n[i]]
+    patient_subid = patient_subid_list[n[i]]
+    random_num = random_num_list[n[i]]
+    x0_file = x0_list[n[i]]
+    condition_file = condition_list[n[i]]
 
     print(i,patient_id, patient_subid, random_num)
 
     # get the ground truth image
     gt_img = nb.load(x0_file)
-    affine = gt_img.affine; gt_img = gt_img.get_fdata()[:,:,40:60]
+    affine = gt_img.affine; gt_img = gt_img.get_fdata()[:,:,30:80]
 
     # get the condition image
-    condition_img = nb.load(condition_file).get_fdata()[:,:,40:60]
+    condition_img = nb.load(condition_file).get_fdata()[:,:,30:80]
 
-    # make folders
-    ff.make_folder([os.path.join(save_folder, patient_id), os.path.join(save_folder, patient_id, patient_subid), os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num))])
-    # save_folder_case = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'_5'); os.makedirs(save_folder_case, exist_ok=True)
+    for iteration in range(1,6):
 
-    # generator
-    # generator = Generator.Dataset_2D(
-    #     supervision = supervision,
+        # make folders
+        ff.make_folder([os.path.join(save_folder, patient_id), os.path.join(save_folder, patient_id, patient_subid), os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num))])
+        save_folder_case = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'_'+str(iteration)); os.makedirs(save_folder_case, exist_ok=True)
 
-    #     img_list = np.array([x0_file]),
-    #     condition_list = np.array([condition_file]),
-    #     image_size = image_size,
+        # generator
+        generator = Generator.Dataset_2D(
+            supervision = supervision,
 
-    #     num_slices_per_image = 20, 
-    #     random_pick_slice = False,
-    #     slice_range = [40,60],
+            img_list = np.array([x0_file]),
+            condition_list = np.array([condition_file]),
+            image_size = image_size,
 
-    #     histogram_equalization = histogram_equalization,
-    #     background_cutoff = background_cutoff,
-    #     maximum_cutoff = maximum_cutoff,
-    #     normalize_factor = normalize_factor,)
+            num_slices_per_image = 50, 
+            random_pick_slice = False,
+            slice_range = [30,80],
 
-    # # sample:
-    # sampler = ddpm.Sampler(diffusion_model,generator,batch_size = 1)
+            histogram_equalization = histogram_equalization,
+            background_cutoff = background_cutoff,
+            maximum_cutoff = maximum_cutoff,
+            normalize_factor = normalize_factor,)
 
-    # pred_img = sampler.sample_2D(trained_model_filename, gt_img)
-    # print(pred_img.shape)
+        # sample:
+        sampler = ddpm.Sampler(diffusion_model,generator,batch_size = 1)
 
-    # # if supervision == 'unsupervised':
-    # #     pred_img_final = np.zeros(gt_img.shape)
-    # #     pred_img_final[:,:,0] = gt_img[:,:,0]
-    # #     pred_img_final[:,:,1:pred_img_final.shape[-1]-1] = pred_img[:,:,0:pred_img_final.shape[-1]-2]
-    # #     pred_img_final[:,:,-1] = gt_img[:,:,-1]
-    # # else:
-    # #     pred_img_final = pred_img
+        pred_img = sampler.sample_2D(trained_model_filename, gt_img)
+        print(pred_img.shape)
 
-    # pred_img_final = pred_img
-  
-    # # save
-    # nb.save(nb.Nifti1Image(pred_img_final, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
-    # nb.save(nb.Nifti1Image(gt_img, affine), os.path.join(save_folder_case, 'gt_img.nii.gz'))
-    # nb.save(nb.Nifti1Image(condition_img, affine), os.path.join(save_folder_case, 'condition_img.nii.gz'))
+        # if supervision == 'unsupervised':
+        #     pred_img_final = np.zeros(gt_img.shape)
+        #     pred_img_final[:,:,0] = gt_img[:,:,0]
+        #     pred_img_final[:,:,1:pred_img_final.shape[-1]-1] = pred_img[:,:,0:pred_img_final.shape[-1]-2]
+        #     pred_img_final[:,:,-1] = gt_img[:,:,-1]
+        # else:
+        #     pred_img_final = pred_img
 
-    # 
-    save_folder_case = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'final'); os.makedirs(save_folder_case, exist_ok=True)
-    made_predicts = ff.find_all_target_files(['epoch' + str(epoch)+'_*'], os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num)))
-    print(made_predicts)
+        pred_img_final = pred_img
+    
+        # save
+        nb.save(nb.Nifti1Image(pred_img_final, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
+        if iter == 1:
+            nb.save(nb.Nifti1Image(gt_img, affine), os.path.join(save_folder_case, 'gt_img.nii.gz'))
+            nb.save(nb.Nifti1Image(condition_img, affine), os.path.join(save_folder_case, 'condition_img.nii.gz'))
 
-    predicts_final = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2], len(made_predicts)))
-    for j in range(len(made_predicts)):
-        predicts_final[:,:,:,j] = nb.load(os.path.join(made_predicts[j],'pred_img.nii.gz')).get_fdata()
-    # average across last axis
-    predicts_final = np.mean(predicts_final, axis = -1)
-    nb.save(nb.Nifti1Image(predicts_final, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
+        # 
+        if iteration == 5 and os.path.isfile(os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'_5','pred_img_nii.gz')):
+            save_folder_case = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'final'); os.makedirs(save_folder_case, exist_ok=True)
+            made_predicts = ff.find_all_target_files(['epoch' + str(epoch)+'_*'], os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num)))
+            print(made_predicts)
+
+            predicts_final = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2], len(made_predicts)))
+            for j in range(len(made_predicts)):
+                predicts_final[:,:,:,j] = nb.load(os.path.join(made_predicts[j],'pred_img.nii.gz')).get_fdata()
+            # average across last axis
+            predicts_final = np.mean(predicts_final, axis = -1)
+            nb.save(nb.Nifti1Image(predicts_final, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
