@@ -11,10 +11,10 @@ import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
 ###########
-trial_name = 'unsupervised_DDPM_gaussian_2D'
+trial_name = 'supervised_DDPM_possion_2D'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
-epoch = 70
+epoch = 50
 trained_model_filename = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'models/model-' + str(epoch)+ '.pt')
 save_folder = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'pred_images'); os.makedirs(save_folder, exist_ok=True)
 
@@ -82,7 +82,7 @@ for i in range(0, n.shape[0]):
     # get the condition image
     condition_img = nb.load(condition_file).get_fdata()[:,:,30:80]
 
-    for iteration in range(1,6):
+    for iteration in range(1,2):
 
         # make folders
         ff.make_folder([os.path.join(save_folder, patient_id), os.path.join(save_folder, patient_id, patient_subid), os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num))])
@@ -106,10 +106,10 @@ for i in range(0, n.shape[0]):
             normalize_factor = normalize_factor,)
 
         # sample:
-        sampler = ddpm.Sampler(diffusion_model,generator,batch_size = 1)
+        # sampler = ddpm.Sampler(diffusion_model,generator,batch_size = 1)
 
-        pred_img = sampler.sample_2D(trained_model_filename, gt_img)
-        print(pred_img.shape)
+        # pred_img = sampler.sample_2D(trained_model_filename, gt_img)
+        # print(pred_img.shape)
 
         # if supervision == 'unsupervised':
         #     pred_img_final = np.zeros(gt_img.shape)
@@ -119,16 +119,21 @@ for i in range(0, n.shape[0]):
         # else:
         #     pred_img_final = pred_img
 
-        pred_img_final = pred_img
+        # pred_img_final = pred_img
     
         # save
-        nb.save(nb.Nifti1Image(pred_img_final, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
-        if iter == 1:
-            nb.save(nb.Nifti1Image(gt_img, affine), os.path.join(save_folder_case, 'gt_img.nii.gz'))
-            nb.save(nb.Nifti1Image(condition_img, affine), os.path.join(save_folder_case, 'condition_img.nii.gz'))
+        # nb.save(nb.Nifti1Image(pred_img_final, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
+        if iteration == 1:
+            # nb.save(nb.Nifti1Image(gt_img, affine), os.path.join(save_folder_case, 'gt_img.nii.gz'))
+            # nb.save(nb.Nifti1Image(condition_img, affine), os.path.join(save_folder_case, 'condition_img.nii.gz'))
+            # # also save the possion noise image
+            possion_file = os.path.join('/workspace/Documents/Data/denoising/simulation', patient_id, patient_subid, 'possion_random_' + str(random_num), 'recon.nii.gz')
+            possion_img = nb.load(possion_file).get_fdata()[:,:,30:80]
+            nb.save(nb.Nifti1Image(possion_img, affine), os.path.join(save_folder_case, 'possion_img.nii.gz'))
+
 
         # 
-        if iteration == 5 and os.path.isfile(os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'_5','pred_img_nii.gz')):
+        if iteration == 5 and os.path.isfile(os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'_5','pred_img.nii.gz')):
             save_folder_case = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'final'); os.makedirs(save_folder_case, exist_ok=True)
             made_predicts = ff.find_all_target_files(['epoch' + str(epoch)+'_*'], os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num)))
             print(made_predicts)
