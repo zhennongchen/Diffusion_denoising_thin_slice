@@ -30,9 +30,10 @@ n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_n
 #             print(x,y,mae)
 #     return best_x, best_y, best_pred
         
-
+avg_slice = True
+print('avg_slice:', avg_slice)
 results = []
-for i in range(0,5):#n.shape[0]):
+for i in range(0,n.shape[0]):
     patient_id = patient_id_list[n[i]]
     patient_subid = patient_subid_list[n[i]]
     random_n = random_num_list[n[i]]
@@ -40,14 +41,20 @@ for i in range(0,5):#n.shape[0]):
 
     gt_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_DDPM_gaussian_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch70_1/gt_img.nii.gz')
     gt_img = nb.load(gt_file).get_fdata()
+    # process gt
+    shape = gt_img.shape
+    gt_img_new = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2]-2))
+    for i in range(1, gt_img.shape[2]-1):
+        gt_img_new[:,:,i-1] = np.mean(gt_img[:,:,i-1:i+2], axis = 2)
+    gt_img = np.copy(gt_img_new) if avg_slice else np.copy(gt_img)
     gt_img_brain = Data_processing.cutoff_intensity(gt_img, cutoff_low=-100, cutoff_high=100)
 
     condition_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_DDPM_gaussian_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch70_1/condition_img.nii.gz')
-    condition_img = nb.load(condition_file).get_fdata()
+    condition_img = nb.load(condition_file).get_fdata() if avg_slice == False else nb.load(condition_file).get_fdata()[:,:,1:shape[2]-1]
     condition_img_brain = Data_processing.cutoff_intensity(condition_img, cutoff_low=-100, cutoff_high=100)
 
     noise2noise_file = os.path.join('/mnt/camca_NAS/denoising/models/noise2noise_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch77/pred_img.nii.gz')
-    noise2noise_img = nb.load(noise2noise_file).get_fdata()
+    noise2noise_img = nb.load(noise2noise_file).get_fdata() if avg_slice == False else nb.load(noise2noise_file).get_fdata()[:,:,1:shape[2]-1]
     noise2noise_img_brain = Data_processing.cutoff_intensity(noise2noise_img, cutoff_low=-100, cutoff_high=100)
 
     # noise2noise_avg_file = os.path.join('/mnt/camca_NAS/denoising/models/noise2noise_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'final_avg/pred_img.nii.gz')
@@ -55,19 +62,19 @@ for i in range(0,5):#n.shape[0]):
     # noise2noise_avg_img_brain = Data_processing.cutoff_intensity(noise2noise_avg_img, cutoff_low=-100, cutoff_high=100)
 
     supervised_file = os.path.join('/mnt/camca_NAS/denoising/models/supervised_DDPM_possion_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch50_1/pred_img.nii.gz')
-    supervised_img = nb.load(supervised_file).get_fdata()
+    supervised_img = nb.load(supervised_file).get_fdata() if avg_slice == False else nb.load(supervised_file).get_fdata()[:,:,1:shape[2]-1]
     supervised_img_brain = Data_processing.cutoff_intensity(supervised_img, cutoff_low=-100, cutoff_high=100)
 
     supervised_avg_file = os.path.join('/mnt/camca_NAS/denoising/models/supervised_DDPM_possion_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch50final/pred_img.nii.gz')
-    supervised_avg_img = nb.load(supervised_avg_file).get_fdata()
+    supervised_avg_img = nb.load(supervised_avg_file).get_fdata() if avg_slice == False else nb.load(supervised_avg_file).get_fdata()[:,:,1:shape[2]-1]
     supervised_avg_img_brain = Data_processing.cutoff_intensity(supervised_avg_img, cutoff_low=-100, cutoff_high=100)
 
     ddpm_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_DDPM_gaussian_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch70_1/pred_img.nii.gz')
-    ddpm_img = nb.load(ddpm_file).get_fdata()
+    ddpm_img = nb.load(ddpm_file).get_fdata() if avg_slice == False else nb.load(ddpm_file).get_fdata()[:,:,1:shape[2]-1]
     ddpm_img_brain = Data_processing.cutoff_intensity(ddpm_img, cutoff_low=-100, cutoff_high=100)
 
     ddpm_avg_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_DDPM_gaussian_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch70final/pred_img.nii.gz')
-    ddpm_avg_img = nb.load(ddpm_avg_file).get_fdata()
+    ddpm_avg_img = nb.load(ddpm_avg_file).get_fdata() if avg_slice == False else nb.load(ddpm_avg_file).get_fdata()[:,:,1:shape[2]-1]
     ddpm_avg_img_brain = Data_processing.cutoff_intensity(ddpm_avg_img, cutoff_low=-100, cutoff_high=100)
 
     # compare brain region
@@ -105,7 +112,8 @@ for i in range(0,5):#n.shape[0]):
 
     results.append([patient_id, patient_subid, random_n, mae_brain_motion, rmse_brain_motion, ssim_brain_motion, psnr_brain_motion, mae_brain_n2n, rmse_brain_n2n, ssim_brain_n2n, psnr_brain_n2n, mae_brain_supervised, rmse_brain_supervised, ssim_brain_supervised, psnr_brain_supervised, mae_brain_supervised_avg, rmse_brain_supervised_avg, ssim_brain_supervised_avg, psnr_brain_supervised_avg, mae_brain_ddpm, rmse_brain_ddpm, ssim_brain_ddpm, psnr_brain_ddpm, mae_brain_ddpm_avg, rmse_brain_ddpm_avg, ssim_brain_ddpm_avg, psnr_brain_ddpm_avg, mae_motion, rmse_motion, ssim_motion, psnr_motion, mae_n2n, rmse_n2n, ssim_n2n, psnr_n2n, mae_supervised, rmse_supervised, ssim_supervised, psnr_supervised, mae_supervised_avg, rmse_supervised_avg, ssim_supervised_avg, psnr_supervised_avg, mae_ddpm, rmse_ddpm, ssim_ddpm, psnr_ddpm, mae_ddpm_avg, rmse_ddpm_avg, ssim_ddpm_avg, psnr_ddpm_avg])
     df = pd.DataFrame(results, columns = ['patient_id', 'patient_subid', 'random_n', 'mae_brain_motion', 'rmse_brain_motion', 'ssim_brain_motion', 'psnr_brain_motion', 'mae_brain_n2n', 'rmse_brain_n2n', 'ssim_brain_n2n', 'psnr_brain_n2n', 'mae_brain_supervised', 'rmse_brain_supervised', 'ssim_brain_supervised', 'psnr_brain_supervised', 'mae_brain_supervised_avg', 'rmse_brain_supervised_avg', 'ssim_brain_supervised_avg', 'psnr_brain_supervised_avg', 'mae_brain_ddpm', 'rmse_brain_ddpm', 'ssim_brain_ddpm', 'psnr_brain_ddpm', 'mae_brain_ddpm_avg', 'rmse_brain_ddpm_avg', 'ssim_brain_ddpm_avg', 'psnr_brain_ddpm_avg', 'mae_motion', 'rmse_motion', 'ssim_motion', 'psnr_motion', 'mae_n2n', 'rmse_n2n', 'ssim_n2n', 'psnr_n2n', 'mae_supervised', 'rmse_supervised', 'ssim_supervised', 'psnr_supervised', 'mae_supervised_avg', 'rmse_supervised_avg', 'ssim_supervised_avg', 'psnr_supervised_avg', 'mae_ddpm', 'rmse_ddpm', 'ssim_ddpm', 'psnr_ddpm', 'mae_ddpm_avg', 'rmse_ddpm_avg', 'ssim_ddpm_avg', 'psnr_ddpm_avg'])
-    df.to_excel('/mnt/camca_NAS/denoising/models/quantitative_results.xlsx')
+    file_name = 'quantitative_results.xlsx' if avg_slice == False else 'quantitative_results_avg_slice.xlsx'
+    df.to_excel(os.path.join('/mnt/camca_NAS/denoising/models', file_name), index = False)
 
     
 
