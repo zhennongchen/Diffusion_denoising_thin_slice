@@ -2,6 +2,7 @@ import sys
 sys.path.append('/workspace/Documents')
 import os
 import torch
+import lpips
 import numpy as np 
 import nibabel as nb
 import pandas as pd
@@ -13,22 +14,49 @@ build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_l
 _,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [5]) 
 n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 3)
 
-# def optimize(pred,gt):
-#     best_mae = 100; best_x = 0; best_y = 0; best_pred = np.copy(pred)
-#     for x in range(-3,4):
-#         for y in range(-3,4):
-#             # translate pred in [x,y]
-#             pred_new = np.copy(pred)
-#             pred_new = np.roll(pred_new, x, axis = 0)
-#             pred_new = np.roll(pred_new, y, axis = 1)
-#             mae,_,_,_,_,_ = ff.compare(pred_new,gt, cutoff_low = 0, cutoff_high = 100)
-#             if mae < best_mae:
-#                 best_mae = mae
-#                 best_x = x
-#                 best_y = y
-#                 best_pred = np.copy(pred_new)
-#             print(x,y,mae)
-#     return best_x, best_y, best_pred
+def compute_lpips_3d(prediction, ground_truth, max_val = None, min_val = None, net_type='vgg'):
+    assert prediction.shape == ground_truth.shape, "Shape mismatch between prediction and ground truth!"
+    
+    # Convert to float32
+    prediction = prediction.astype(np.float32)
+    ground_truth = ground_truth.astype(np.float32)
+
+    # Normalize to [-1, 1] range as required by LPIPS
+    if max_val == None:
+        prediction = (prediction - prediction.min()) / (prediction.max() - prediction.min()) * 2 - 1 
+    else:
+        prediction = (prediction - min_val) / (max_val - min_val) * 2 - 1
+    if max_val == None:
+        ground_truth = (ground_truth - ground_truth.min()) / (ground_truth.max() - ground_truth.min()) * 2 - 1
+    else:
+        ground_truth = (ground_truth - min_val) / (max_val - min_val) * 2 - 1
+
+    # Initialize LPIPS loss model
+    loss_fn = lpips.LPIPS(net=net_type).to('cuda' if torch.cuda.is_available() else 'cpu')
+
+    lpips_scores = []
+    
+    # Loop through each slice along the z-axis
+    for i in range(prediction.shape[2]):
+        pred_slice = prediction[:, :, i]  # Get 2D slice
+        gt_slice = ground_truth[:, :, i]  # Get corresponding GT slice
+
+        # Convert numpy arrays to torch tensors
+        pred_tensor = torch.tensor(pred_slice).unsqueeze(0).unsqueeze(0)  # Shape: [1,1,H,W]
+        gt_tensor = torch.tensor(gt_slice).unsqueeze(0).unsqueeze(0)
+
+        # Move to GPU if available
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        pred_tensor = pred_tensor.to(device)
+        gt_tensor = gt_tensor.to(device)
+        loss_fn = loss_fn.to(device)
+
+        # Compute LPIPS score for this slice
+        lpips_score = loss_fn(pred_tensor, gt_tensor)
+        lpips_scores.append(lpips_score.item())
+
+    # Compute average LPIPS score across all slices
+    return np.mean(lpips_scores)
         
 avg_slice = True
 print('avg_slice:', avg_slice)
@@ -80,7 +108,6 @@ for i in range(0,n.shape[0]):
     # compare brain region
     mae_brain_motion, _, rmse_brain_motion, _, ssim_brain_motion,psnr_brain_motion = ff.compare(condition_img_brain, gt_img_brain, cutoff_low = 0, cutoff_high = 100)
     mae_brain_n2n, _, rmse_brain_n2n, _, ssim_brain_n2n,psnr_brain_n2n = ff.compare(noise2noise_img_brain, gt_img_brain, cutoff_low = 0, cutoff_high = 100)
-    # mae_brain_n2n_avg, _, rmse_brain_n2n_avg, _, ssim_brain_n2n_avg,psnr_brain_n2n_avg = ff.compare(noise2noise_avg_img_brain, gt_img_brain, cutoff_low = 0, cutoff_high = 100)
     mae_brain_supervised, _, rmse_brain_supervised, _, ssim_brain_supervised,psnr_brain_supervised = ff.compare(supervised_img_brain, gt_img_brain, cutoff_low = 0, cutoff_high = 100)
     mae_brain_supervised_avg, _, rmse_brain_supervised_avg, _, ssim_brain_supervised_avg,psnr_brain_supervised_avg = ff.compare(supervised_avg_img_brain, gt_img_brain, cutoff_low = 0, cutoff_high = 100)
 
@@ -102,16 +129,32 @@ for i in range(0,n.shape[0]):
     mae_ddpm, _, rmse_ddpm, _, ssim_ddpm,psnr_ddpm = ff.compare(ddpm_img, gt_img, cutoff_low = -100)
     mae_ddpm_avg, _, rmse_ddpm_avg, _, ssim_ddpm_avg,psnr_ddpm_avg = ff.compare(ddpm_avg_img, gt_img, cutoff_low = -100)
 
-    print('all image:')
-    print('motion:', mae_motion, rmse_motion, ssim_motion, psnr_motion)
-    print('n2n:', mae_n2n, rmse_n2n, ssim_n2n, psnr_n2n)
-    print('supervised:', mae_supervised, rmse_supervised, ssim_supervised, psnr_supervised)
-    print('supervised_avg:', mae_supervised_avg, rmse_supervised_avg, ssim_supervised_avg, psnr_supervised_avg)
-    print('ddpm:', mae_ddpm, rmse_ddpm, ssim_ddpm, psnr_ddpm)
-    print('ddpm_avg:', mae_ddpm_avg, rmse_ddpm_avg, ssim_ddpm_avg, psnr_ddpm_avg)
+    # print('all image:')
+    # print('motion:', mae_motion, rmse_motion, ssim_motion, psnr_motion)
+    # print('n2n:', mae_n2n, rmse_n2n, ssim_n2n, psnr_n2n)
+    # print('supervised:', mae_supervised, rmse_supervised, ssim_supervised, psnr_supervised)
+    # print('supervised_avg:', mae_supervised_avg, rmse_supervised_avg, ssim_supervised_avg, psnr_supervised_avg)
+    # print('ddpm:', mae_ddpm, rmse_ddpm, ssim_ddpm, psnr_ddpm)
+    # print('ddpm_avg:', mae_ddpm_avg, rmse_ddpm_avg, ssim_ddpm_avg, psnr_ddpm_avg)
 
-    results.append([patient_id, patient_subid, random_n, mae_brain_motion, rmse_brain_motion, ssim_brain_motion, psnr_brain_motion, mae_brain_n2n, rmse_brain_n2n, ssim_brain_n2n, psnr_brain_n2n, mae_brain_supervised, rmse_brain_supervised, ssim_brain_supervised, psnr_brain_supervised, mae_brain_supervised_avg, rmse_brain_supervised_avg, ssim_brain_supervised_avg, psnr_brain_supervised_avg, mae_brain_ddpm, rmse_brain_ddpm, ssim_brain_ddpm, psnr_brain_ddpm, mae_brain_ddpm_avg, rmse_brain_ddpm_avg, ssim_brain_ddpm_avg, psnr_brain_ddpm_avg, mae_motion, rmse_motion, ssim_motion, psnr_motion, mae_n2n, rmse_n2n, ssim_n2n, psnr_n2n, mae_supervised, rmse_supervised, ssim_supervised, psnr_supervised, mae_supervised_avg, rmse_supervised_avg, ssim_supervised_avg, psnr_supervised_avg, mae_ddpm, rmse_ddpm, ssim_ddpm, psnr_ddpm, mae_ddpm_avg, rmse_ddpm_avg, ssim_ddpm_avg, psnr_ddpm_avg])
-    df = pd.DataFrame(results, columns = ['patient_id', 'patient_subid', 'random_n', 'mae_brain_motion', 'rmse_brain_motion', 'ssim_brain_motion', 'psnr_brain_motion', 'mae_brain_n2n', 'rmse_brain_n2n', 'ssim_brain_n2n', 'psnr_brain_n2n', 'mae_brain_supervised', 'rmse_brain_supervised', 'ssim_brain_supervised', 'psnr_brain_supervised', 'mae_brain_supervised_avg', 'rmse_brain_supervised_avg', 'ssim_brain_supervised_avg', 'psnr_brain_supervised_avg', 'mae_brain_ddpm', 'rmse_brain_ddpm', 'ssim_brain_ddpm', 'psnr_brain_ddpm', 'mae_brain_ddpm_avg', 'rmse_brain_ddpm_avg', 'ssim_brain_ddpm_avg', 'psnr_brain_ddpm_avg', 'mae_motion', 'rmse_motion', 'ssim_motion', 'psnr_motion', 'mae_n2n', 'rmse_n2n', 'ssim_n2n', 'psnr_n2n', 'mae_supervised', 'rmse_supervised', 'ssim_supervised', 'psnr_supervised', 'mae_supervised_avg', 'rmse_supervised_avg', 'ssim_supervised_avg', 'psnr_supervised_avg', 'mae_ddpm', 'rmse_ddpm', 'ssim_ddpm', 'psnr_ddpm', 'mae_ddpm_avg', 'rmse_ddpm_avg', 'ssim_ddpm_avg', 'psnr_ddpm_avg'])
+    # calculate lpips in brain
+    lpips_brain_motion = compute_lpips_3d(condition_img_brain, gt_img_brain, max_val = 100, min_val = 0)
+    lpips_brain_n2n = compute_lpips_3d(noise2noise_img_brain, gt_img_brain, max_val = 100, min_val = 0)
+    lpips_brain_supervised = compute_lpips_3d(supervised_img_brain, gt_img_brain, max_val = 100, min_val = 0)
+    lpips_brain_supervised_avg = compute_lpips_3d(supervised_avg_img_brain, gt_img_brain, max_val = 100, min_val = 0)
+    lpips_brain_ddpm = compute_lpips_3d(ddpm_img_brain, gt_img_brain, max_val = 100, min_val = 0)
+    lpips_brain_ddpm_avg = compute_lpips_3d(ddpm_avg_img_brain, gt_img_brain, max_val = 100, min_val = 0)
+
+    print('lpips: ')
+    print('motion:', lpips_brain_motion)
+    print('n2n:', lpips_brain_n2n)
+    print('supervised:', lpips_brain_supervised)
+    print('supervised_avg:', lpips_brain_supervised_avg)
+    print('ddpm:', lpips_brain_ddpm)
+    print('ddpm_avg:', lpips_brain_ddpm_avg)
+
+    results.append([patient_id, patient_subid, random_n, mae_brain_motion, rmse_brain_motion, ssim_brain_motion, psnr_brain_motion, mae_brain_n2n, rmse_brain_n2n, ssim_brain_n2n, psnr_brain_n2n, mae_brain_supervised, rmse_brain_supervised, ssim_brain_supervised, psnr_brain_supervised, mae_brain_supervised_avg, rmse_brain_supervised_avg, ssim_brain_supervised_avg, psnr_brain_supervised_avg, mae_brain_ddpm, rmse_brain_ddpm, ssim_brain_ddpm, psnr_brain_ddpm, mae_brain_ddpm_avg, rmse_brain_ddpm_avg, ssim_brain_ddpm_avg, psnr_brain_ddpm_avg, mae_motion, rmse_motion, ssim_motion, psnr_motion, mae_n2n, rmse_n2n, ssim_n2n, psnr_n2n, mae_supervised, rmse_supervised, ssim_supervised, psnr_supervised, mae_supervised_avg, rmse_supervised_avg, ssim_supervised_avg, psnr_supervised_avg, mae_ddpm, rmse_ddpm, ssim_ddpm, psnr_ddpm, mae_ddpm_avg, rmse_ddpm_avg, ssim_ddpm_avg, psnr_ddpm_avg, lpips_brain_motion, lpips_brain_n2n, lpips_brain_supervised, lpips_brain_supervised_avg, lpips_brain_ddpm, lpips_brain_ddpm_avg])
+    df = pd.DataFrame(results, columns = ['patient_id', 'patient_subid', 'random_n', 'mae_brain_motion', 'rmse_brain_motion', 'ssim_brain_motion', 'psnr_brain_motion', 'mae_brain_n2n', 'rmse_brain_n2n', 'ssim_brain_n2n', 'psnr_brain_n2n', 'mae_brain_supervised', 'rmse_brain_supervised', 'ssim_brain_supervised', 'psnr_brain_supervised', 'mae_brain_supervised_avg', 'rmse_brain_supervised_avg', 'ssim_brain_supervised_avg', 'psnr_brain_supervised_avg', 'mae_brain_ddpm', 'rmse_brain_ddpm', 'ssim_brain_ddpm', 'psnr_brain_ddpm', 'mae_brain_ddpm_avg', 'rmse_brain_ddpm_avg', 'ssim_brain_ddpm_avg', 'psnr_brain_ddpm_avg', 'mae_motion', 'rmse_motion', 'ssim_motion', 'psnr_motion', 'mae_n2n', 'rmse_n2n', 'ssim_n2n', 'psnr_n2n', 'mae_supervised', 'rmse_supervised', 'ssim_supervised', 'psnr_supervised', 'mae_supervised_avg', 'rmse_supervised_avg', 'ssim_supervised_avg', 'psnr_supervised_avg', 'mae_ddpm', 'rmse_ddpm', 'ssim_ddpm', 'psnr_ddpm', 'mae_ddpm_avg', 'rmse_ddpm_avg', 'ssim_ddpm_avg', 'psnr_ddpm_avg', 'lpips_brain_motion', 'lpips_brain_n2n', 'lpips_brain_supervised', 'lpips_brain_supervised_avg', 'lpips_brain_ddpm', 'lpips_brain_ddpm_avg'])
     file_name = 'quantitative_results.xlsx' if avg_slice == False else 'quantitative_results_avg_slice.xlsx'
     df.to_excel(os.path.join('/mnt/camca_NAS/denoising/models', file_name), index = False)
 
