@@ -21,7 +21,7 @@ save_folder = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'pred_
 image_size = [512,512]
 
 objective = 'pred_x0'
-sampling_timesteps = 200
+sampling_timesteps = 100
 
 histogram_equalization = True
 background_cutoff = -1000
@@ -29,12 +29,13 @@ maximum_cutoff = 2000
 normalize_factor = 'equation'
 clip_range = [-1,1]
 
-do_pred_or_avg = 'avg'
+do_pred_or_avg = 'pred'
 
 ###########
 build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian.xlsx'))
-_,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [5]) 
+_,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [0,1,2,3,4]) 
 n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 3)
+print('total number:', n.shape[0])
 # x0_list = x0_list[0:1]; condition_list = condition_list[0:1]
 
 model = ddpm.Unet(
@@ -85,13 +86,13 @@ for i in range(0,n.shape[0]):
     # get the condition image
     condition_img = nb.load(condition_file).get_fdata()[:,:,30:80]
 
-    for iteration in range(0,1):
+    for iteration in range(1,11):
         print('iteration:', iteration)
 
         # make folders
         if do_pred_or_avg == 'pred':
             ff.make_folder([os.path.join(save_folder, patient_id), os.path.join(save_folder, patient_id, patient_subid), os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num))])
-            save_folder_case = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'_'+str(iteration)); os.makedirs(save_folder_case, exist_ok=True)
+            save_folder_case = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'_'+str(iteration)+'_200'); os.makedirs(save_folder_case, exist_ok=True)
 
             if os.path.isfile(os.path.join(save_folder_case, 'pred_img.nii.gz')):
                 print('already done')
@@ -128,11 +129,11 @@ for i in range(0,n.shape[0]):
             if iteration == 1:
                 nb.save(nb.Nifti1Image(gt_img, affine), os.path.join(save_folder_case, 'gt_img.nii.gz'))
                 nb.save(nb.Nifti1Image(condition_img, affine), os.path.join(save_folder_case, 'condition_img.nii.gz'))
-                # # also save the possion noise image
-                if 'possion' in trial_name:
-                    possion_file = os.path.join('/workspace/Documents/Data/denoising/simulation', patient_id, patient_subid, 'possion_random_' + str(random_num), 'recon.nii.gz')
-                    possion_img = nb.load(possion_file).get_fdata()[:,:,30:80]
-                    nb.save(nb.Nifti1Image(possion_img, affine), os.path.join(save_folder_case, 'possion_img.nii.gz'))
+                # # # also save the possion noise image
+                # if 'possion' in trial_name:
+                #     possion_file = os.path.join('/workspace/Documents/Data/denoising/simulation', patient_id, patient_subid, 'possion_random_' + str(random_num), 'recon.nii.gz')
+                #     possion_img = nb.load(possion_file).get_fdata()[:,:,30:80]
+                #     nb.save(nb.Nifti1Image(possion_img, affine), os.path.join(save_folder_case, 'possion_img.nii.gz'))
 
         # 
         if do_pred_or_avg == 'avg':
