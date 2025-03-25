@@ -29,7 +29,7 @@ maximum_cutoff = 2000
 normalize_factor = 'equation'
 clip_range = [-1,1]
 
-do_pred_or_avg = 'pred'
+do_pred_or_avg = 'avg'
 
 ###########
 build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian.xlsx'))
@@ -68,7 +68,7 @@ diffusion_model = ddpm.GaussianDiffusion(
     clip_or_not = True, 
     clip_range = clip_range, )
 
-for i in range(0, n.shape[0]):
+for i in range(0,n.shape[0]):
     patient_id = patient_id_list[n[i]]
     patient_subid = patient_subid_list[n[i]]
     random_num = random_num_list[n[i]]
@@ -77,6 +77,7 @@ for i in range(0, n.shape[0]):
 
     print(i,patient_id, patient_subid, random_num)
 
+
     # get the ground truth image
     gt_img = nb.load(x0_file)
     affine = gt_img.affine; gt_img = gt_img.get_fdata()[:,:,30:80]
@@ -84,7 +85,7 @@ for i in range(0, n.shape[0]):
     # get the condition image
     condition_img = nb.load(condition_file).get_fdata()[:,:,30:80]
 
-    for iteration in range(6,14):
+    for iteration in range(0,1):
         print('iteration:', iteration)
 
         # make folders
@@ -142,12 +143,16 @@ for i in range(0, n.shape[0]):
             print(made_predicts)
             total_predicts = len(made_predicts)
 
+            loaded_data = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2], total_predicts))
+            for j in range(total_predicts):
+                loaded_data[:,:,:,j] = nb.load(os.path.join(made_predicts[j],'pred_img.nii.gz')).get_fdata()
+
             for avg_num in range(1,total_predicts+1):
                 predicts_avg = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2], avg_num))
                 print('predict_num:', avg_num)
                 for j in range(avg_num):
                     print('file:', made_predicts[j])
-                    predicts_avg[:,:,:,j] = nb.load(os.path.join(made_predicts[j],'pred_img.nii.gz')).get_fdata()
+                    predicts_avg[:,:,:,j] = loaded_data[:,:,:,j]
                 # average across last axis
                 predicts_avg = np.mean(predicts_avg, axis = -1)
                 nb.save(nb.Nifti1Image(predicts_avg, affine), os.path.join(save_folder_avg, 'pred_img_scans' + str(avg_num) + '.nii.gz'))
