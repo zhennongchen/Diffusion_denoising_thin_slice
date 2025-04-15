@@ -10,6 +10,23 @@ import Diffusion_motion_field.Data_processing as dp
 from skimage.metrics import structural_similarity as compare_ssim
 # import CTProjector.src.ct_projector.projector.numpy as ct_projector
 
+def create_lowpass_mask(shape, radius):
+    H, W, S = shape
+    center = np.array([H // 2, W // 2, S // 2])
+    y, x, z = np.ogrid[:H, :W, :S]  # 顺序和 shape 对应
+    dist = np.sqrt((x - center[1])**2 + (y - center[0])**2 + (z - center[2])**2)
+    mask = dist <= radius
+    return mask
+
+def create_2d_lowpass_mask(shape, radius):
+    H, W = shape
+    cy, cx = H // 2, W // 2
+    y, x = np.ogrid[:H, :W]
+    dist = np.sqrt((x - cx) ** 2 + (y - cy) ** 2)
+    mask = dist <= radius
+    return mask
+
+
 def pick_random_from_segments(X):
     # Generate the list from 0 to X
     full_list = list(range(X + 1))
