@@ -16,7 +16,7 @@ from scipy.ndimage import gaussian_filter
 from skimage.util import view_as_windows
 
 build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian.xlsx'))
-_,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [0]) 
+_,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [5]) 
 n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 3)
 print('total number:', n.shape[0])
 
@@ -28,7 +28,7 @@ if fusion_method == 'fft':
 if fusion_method == 'weighted':
     h_param = 0.05
 
-for i in range(0, 1):#n.shape[0]):
+for i in range(0, n.shape[0]):
 
     patient_id = patient_id_list[n[i]]
     patient_subid = patient_subid_list[n[i]]

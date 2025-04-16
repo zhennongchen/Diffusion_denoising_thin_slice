@@ -44,9 +44,9 @@ def basic_image_processing(filename , convert_value = True, header = False):
         return img, spacing, ct.affine, ct.header
 
 
-def define_forward_projector(img,spacing,total_view,du_nyquist = 1):
+def define_forward_projector(img,spacing,total_view,du_nyquist = 1, file_name = './projector_fan.cfg'):
     projector = ct_projector.ct_projector()
-    projector.from_file('./projector_fan.cfg')
+    projector.from_file(file_name)
     projector.nx = img.shape[3]
     projector.ny = img.shape[2]
     projector.nz = 1
