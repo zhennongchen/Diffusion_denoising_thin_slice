@@ -12,7 +12,7 @@ import pandas as pd
 import os
 import copy
 from skimage.measure import block_reduce
-import ct_basic as ct
+import Diffusion_denoising_thin_slice.simulation.ct_basic_PCD as ct
 
 import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Data_processing as Data_processing
