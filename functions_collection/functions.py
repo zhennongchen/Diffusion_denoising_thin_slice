@@ -6,7 +6,7 @@ import math
 import SimpleITK as sitk
 import cv2
 import random
-import Diffusion_motion_field.Data_processing as dp
+import Diffusion_denoising_thin_slice.Data_processing as dp
 from skimage.metrics import structural_similarity as compare_ssim
 # import CTProjector.src.ct_projector.projector.numpy as ct_projector
 
