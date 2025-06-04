@@ -167,7 +167,7 @@ class Dataset_2D(Dataset):
 
             if self.supervision == 'unsupervised':
                 self.current_x0_data = np.copy(self.current_condition_data)
-                print('in unsupervised case, current x0 data is: ', self.current_x0_data.shape)
+                # print('in unsupervised case, current x0 data is: ', self.current_x0_data.shape)
 
             # define a list of random slice numbers
             if self.slice_range == None:
