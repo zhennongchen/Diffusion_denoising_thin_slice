@@ -39,7 +39,7 @@ print('std max, min, mean, std, median, lower quartile, upper quartile: ', np.ma
 patient_sheet = pd.read_excel(os.path.join('/mnt/camca_NAS/denoising/','Patient_lists', 'fixedCT_static.xlsx'),dtype={'Patient_ID': str, 'Patient_subID': str})
 print('patient sheet len: ', len(patient_sheet))
 
-for i in range(0, len(patient_sheet)):
+for i in range(0,1):# len(patient_sheet)):
     row = patient_sheet.iloc[i]
     patient_id = row['Patient_ID']
     patient_subID = row['Patient_subID']
@@ -55,7 +55,7 @@ for i in range(0, len(patient_sheet)):
 
     for noise_type in ['possion','gaussian']:
     
-        for k in range(0,3):
+        for k in range(4,5):
             # dose_factor = round(dose_factor,3)
             if noise_type == 'possion':
                 dose_factor = np.random.uniform(possion_hann_dose_range[0],possion_hann_dose_range[1] + 1e-8)
