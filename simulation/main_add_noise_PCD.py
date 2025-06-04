@@ -27,7 +27,7 @@ print('std max, min, mean, std, median, lower quartile, upper quartile: ', np.ma
 patient_sheet = pd.read_excel(os.path.join('/mnt/camca_NAS/denoising/','Patient_lists', 'fixedCT_static.xlsx'),dtype={'Patient_ID': str, 'Patient_subID': str})
 print('patient sheet len: ', len(patient_sheet))
 
-for i in range(0,len(patient_sheet)//3):
+for i in range(0,len(patient_sheet)//2):
     row = patient_sheet.iloc[i]
     patient_id = row['Patient_ID']
     patient_subID = row['Patient_subID']
