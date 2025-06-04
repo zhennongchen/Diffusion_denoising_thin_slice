@@ -47,19 +47,13 @@ def define_forward_projector_pcd(img,spacing, file_name = './pcd_parallel_6x5_51
     return projector
 
 
-def add_poisson_noise(prj: np.ndarray, N0: float, dose_factor: float):
-    """
-    Add realistic Poisson noise to the projection data.
+def add_poisson_noise(prj: np.ndarray, N0: float, dose_factor: float, seed: int=None):
 
-    Args:
-        prj (np.ndarray): Log-transformed projection data.
-        N0 (float): Initial photon count (higher N0 means lower noise).
-        dose_factor (float): Scaling factor for dose (0-1, where 1 is full dose).
-        seed (int): Random seed for reproducibility.
-
-    Returns:
-        np.ndarray: Noisy projection data.
-    """
+    if seed is not None:
+        np.random.seed(seed)
+    else:
+        rand_int = np.random.randint(0, 1000000001) 
+        np.random.seed(rand_int)
 
     if N0 > 0 and dose_factor < 1:
         # Convert log projection back to photon counts
@@ -75,7 +69,12 @@ def add_poisson_noise(prj: np.ndarray, N0: float, dose_factor: float):
 
     return prj.astype(np.float32)
 
-def add_gaussian_noise(prj: np.ndarray, N0: float, dose_factor: float):
+def add_gaussian_noise(prj: np.ndarray, N0: float, dose_factor: float,seed: int=None):
+    if seed is not None:
+        np.random.seed(seed)
+    else:
+        rand_int = np.random.randint(0, 1000000001) 
+        np.random.seed(rand_int)
 
     # add noise
     if N0 > 0 and dose_factor < 1:
@@ -124,4 +123,56 @@ def get_additional_filter_to_rl(filename, nu, du, nview, ninterp=20):
     # plt.show()
 
     return ratio_fix
+
+def interleave_filter_and_recon(projector, prjs, custom_filter,angles):
+    # interleave the filter
+    projector = copy.deepcopy(projector)
+    prjs = prjs.copy()
+
+    # make sure the detector center is within the central pixel (usually 0.25 of a pixel)
+    # so that when interleaving the detectors the length will be twice the original
+    offu = int(projector.off_u)
+    projector.off_u -= offu
+    projector.nu -= 2 * offu
+    prjs = prjs[..., :-2 * offu]
+
+    # interleave the projections
+    new_prjs = np.zeros(list(prjs.shape[:-1]) + [prjs.shape[-1] * 2])
+    for iview in range(new_prjs.shape[1]):
+        iview_opp = (iview + new_prjs.shape[1] // 2) % new_prjs.shape[1]
+        new_prjs[:, iview, :, 1::2] = prjs[:, iview, :, :]
+        new_prjs[:, iview, :, 0::2] = prjs[:, iview_opp, :, ::-1]
+    prjs = new_prjs
+    projector.off_u = 0
+    projector.nu = prjs.shape[-1]
+    projector.du = projector.du / 2
+
+    # build rl filter
+    nu = prjs.shape[-1]
+    du = projector.du
+    rl_filter = np.zeros([2 * nu - 1], np.float32)
+    k = np.arange(len(rl_filter)) - (nu - 1)
+    for i in range(len(rl_filter)):
+        if k[i] == 0:
+            rl_filter[i] = 1 / (4 * du * du)
+        elif k[i] % 2 != 0:
+            rl_filter[i] = -1 / (np.pi * np.pi * k[i] * k[i] * du * du)
+    frl_filter = np.fft.fft(rl_filter, len(custom_filter))
+    frl_filter = np.abs(frl_filter)
+
+    frl_filter = frl_filter * len(frl_filter) / prjs.shape[1] * du * 2
+
+    custom_filter = frl_filter * custom_filter
+
+    # filter the projection
+    fprj = np.fft.fft(prjs, len(custom_filter), axis=-1)
+    fprj = fprj * custom_filter
+    fprj = np.fft.ifft(fprj, axis=-1)[..., :prjs.shape[-1]]
+    fprj = fprj.real.astype(np.float32) * np.pi / len(custom_filter) / 2
+    fprj = np.copy(fprj, 'C')
+
+    # reconstruction
+    recon = ct_para.pixel_driven_bp(projector, fprj, angles)
+
+    return recon
 
