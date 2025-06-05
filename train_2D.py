@@ -9,12 +9,12 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'unsupervised_DDPM_gaussian_2D'
+trial_name = 'supervised_DDPM_possion_2D'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
-pre_trained_model = None#os.path.join('/mnt/camca_NAS/denoising/models',trial_name, 'models', 'model-44.pt')
-start_step = 0
+pre_trained_model = os.path.join('/mnt/camca_NAS/denoising/models',trial_name, 'models', 'model-2.pt')
+start_step = 2
 image_size = [512,512]
 num_patches_per_slice = 2
 patch_size = [128,128]

@@ -7,11 +7,11 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from einops import rearrange, repeat, reduce
 
-from Diffusion_models.denoising_diffusion_pytorch.denoising_diffusion_pytorch.conditional_diffusion import *
-from Diffusion_models.denoising_diffusion_pytorch.denoising_diffusion_pytorch.version import __version__
+from Diffusion_denoising_thin_slice.denoising_diffusion_pytorch.denoising_diffusion_pytorch.conditional_diffusion import *
+from Diffusion_denoising_thin_slice.denoising_diffusion_pytorch.denoising_diffusion_pytorch.version import __version__
 
-import Diffusion_models.functions_collection as ff
-import Diffusion_models.Data_processing as Data_processing
+import Diffusion_denoising_thin_slice.functions_collection as ff
+import Diffusion_denoising_thin_slice.Data_processing as Data_processing
 
 # helpers
 

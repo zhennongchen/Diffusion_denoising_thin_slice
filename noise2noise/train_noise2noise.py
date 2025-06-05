@@ -10,8 +10,8 @@ import Diffusion_denoising_thin_slice.noise2noise.Generator as Generator
 
 #######################
 trial_name = 'noise2noise_2D'
-pre_trained_model = None#os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'models', 'model-27.pt')
-start_step = 0
+pre_trained_model = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'models', 'model-13.pt')
+start_step = 13
 image_size = [512,512]
 num_patches_per_slice = 2
 patch_size = [128,128]
