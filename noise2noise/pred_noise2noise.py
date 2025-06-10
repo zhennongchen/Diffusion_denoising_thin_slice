@@ -11,7 +11,7 @@ import Diffusion_denoising_thin_slice.noise2noise.Generator as Generator
 
 #######################
 trial_name = 'noise2noise_2D'
-epoch = 77
+epoch = 78
 trained_model_filename = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'models/model-' + str(epoch)+ '.pt')
 save_folder = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'pred_images'); os.makedirs(save_folder, exist_ok=True)
 
