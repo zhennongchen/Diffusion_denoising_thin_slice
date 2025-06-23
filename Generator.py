@@ -156,7 +156,7 @@ class Dataset_2D(Dataset):
             # print('we have x0 since we have clean image')
             if x0_filename != self.current_x0_file:
                 x0_img = self.load_file(x0_filename)
-                print('load: ',x0_filename)
+                # print('load: ',x0_filename)
                 self.current_x0_file = x0_filename
                 self.current_x0_data = np.copy(x0_img)
 

@@ -9,12 +9,12 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'supervised_DDPM_possion_2D'
+trial_name = 'supervised_DDPM_gaussian_2D_distilled'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
-pre_trained_model = os.path.join('/mnt/camca_NAS/denoising/models',trial_name, 'models', 'model-2.pt')
-start_step = 2
+pre_trained_model = None#os.path.join('/mnt/camca_NAS/denoising/models',trial_name, 'models', 'model-2.pt')
+start_step = 0
 image_size = [512,512]
 num_patches_per_slice = 2
 patch_size = [128,128]
@@ -30,8 +30,11 @@ normalize_factor = 'equation'
 # define train
 if supervision == 'supervised':
     build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_possion_local.xlsx'))
+    if 'distilled' in trial_name:
+        build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_distilled_model_train_test_local.xlsx'))
 else:
     build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian_local.xlsx'))
+
 _,_,_,_, condition_list_train, x0_list_train = build_sheet.__build__(batch_list = [0,1,2,3]) 
 # x0_list_train = x0_list_train[0:1]; condition_list_train = condition_list_train[0:1]
  
@@ -79,7 +82,7 @@ generator_train = Generator.Dataset_2D(
         image_size = image_size,
 
         num_slices_per_image = 50,
-        random_pick_slice = True,
+        random_pick_slice = False,
         slice_range = None,
 
         num_patches_per_slice = num_patches_per_slice,
@@ -103,7 +106,7 @@ generator_val = Generator.Dataset_2D(
 
         num_slices_per_image = 20,
         random_pick_slice = False,
-        slice_range = [50,70],
+        slice_range = [20,40],#[50,70],
 
         num_patches_per_slice = 1,
         patch_size = [512,512],

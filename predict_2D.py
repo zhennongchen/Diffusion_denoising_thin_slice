@@ -11,10 +11,10 @@ import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
 ###########
-trial_name = 'unsupervised_DDPM_gaussian_2D'
+trial_name = 'supervised_DDPM_possion_2D'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
-epoch = 68
+epoch = 33
 trained_model_filename = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'models/model-' + str(epoch)+ '.pt')
 save_folder = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'pred_images'); os.makedirs(save_folder, exist_ok=True)
 
@@ -33,8 +33,8 @@ do_pred_or_avg = 'pred'
 
 ###########
 build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian_local.xlsx'))
-_,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [0,1,2,3,4,5]) 
-n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 3)
+_,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [5]) 
+n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 2, interval = 3)
 print('total number:', n.shape[0])
 # x0_list = x0_list[0:1]; condition_list = condition_list[0:1]
 
@@ -69,7 +69,7 @@ diffusion_model = ddpm.GaussianDiffusion(
     clip_or_not = True, 
     clip_range = clip_range, )
 
-for i in range(0,1):#n.shape[0]):
+for i in range(n.shape[0]//3*2,n.shape[0]):
     patient_id = patient_id_list[n[i]]
     patient_subid = patient_subid_list[n[i]]
     random_num = random_num_list[n[i]]
@@ -87,7 +87,7 @@ for i in range(0,1):#n.shape[0]):
     condition_img = nb.load(condition_file).get_fdata()[:,:,30:80]
 
     if do_pred_or_avg == 'pred':
-        for iteration in range(1,11):
+        for iteration in range(1,2):
             print('iteration:', iteration)
 
             # make folders
@@ -151,7 +151,7 @@ for i in range(0,1):#n.shape[0]):
         for j in range(total_predicts):
             loaded_data[:,:,:,j] = nb.load(os.path.join(made_predicts[j],'pred_img.nii.gz')).get_fdata()
 
-        for avg_num in [2,5,10,20]:#range(1,total_predicts+1):
+        for avg_num in [10,20]:#range(1,total_predicts+1):
             print('avg_num:', avg_num)
             predicts_avg = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2], avg_num))
             print('predict_num:', avg_num)
