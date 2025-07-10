@@ -76,12 +76,12 @@ for i in range(0, len(patient_sheet)):
     nb.save(nb.Nifti1Image(img_data_xyz5mm, new_affine_5mm, img.header), save_file)
 
     ### interpolate to 1.25mm
-    new_dim = [pixdim[0], pixdim[1], 1.25]
+    new_dim = [pixdim[0], pixdim[1], 0.625]
 
     img_5mm = nb.load(os.path.join(save_path, 'fixedCT', patient_id, patient_subID, 'img_5mm.nii.gz'))
     hr_resample = Data_processing.resample_nifti(img_5mm, order=1,  mode = 'nearest',  cval = np.min(img_5mm.get_fdata()), in_plane_resolution_mm=new_dim[0], slice_thickness_mm=new_dim[-1])
     nb.save(hr_resample, os.path.join(save_path, 'fixedCT', patient_id, patient_subID, 'img_thinslice.nii.gz'))
     # delete img_5mm
-    os.remove(os.path.join(save_path, 'fixedCT', patient_id, patient_subID, 'img_5mm.nii.gz'))
+    # os.remove(os.path.join(save_path, 'fixedCT', patient_id, patient_subID, 'img_5mm.nii.gz'))
 
 
