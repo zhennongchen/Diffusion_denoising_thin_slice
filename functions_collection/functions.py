@@ -152,14 +152,14 @@ def convert_translation_control_points(t, dim, from_pixel_to_1 = True):
 
 
 # function: comparison error
-def compare(a, b,  cutoff_low = 0 ,cutoff_high = 1000000, extreme = 5000):
+def compare(a, b,  cutoff_low = 0 ,cutoff_high = 1000000):
     # compare a to b, b is ground truth
     # if a pixel is lower than cutoff (meaning it's background), then it's out of comparison
     c = np.copy(b)
     diff = abs(a-b)
    
-    a = a[(c>cutoff_low)& (c < cutoff_high) & (diff<extreme)].reshape(-1)
-    b = b[(c>cutoff_low)& (c < cutoff_high) & (diff<extreme)].reshape(-1)
+    a = a[(c>cutoff_low)& (c < cutoff_high) ].reshape(-1)
+    b = b[(c>cutoff_low)& (c < cutoff_high) ].reshape(-1)
 
     diff = abs(a-b)
 
