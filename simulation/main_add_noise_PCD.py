@@ -27,7 +27,7 @@ print('std max, min, mean, std, median, lower quartile, upper quartile: ', np.ma
 patient_sheet = pd.read_excel(os.path.join('/mnt/camca_NAS/denoising/','Patient_lists', 'fixedCT_static.xlsx'),dtype={'Patient_ID': str, 'Patient_subID': str})
 print('patient sheet len: ', len(patient_sheet))
 
-for i in range(0,len(patient_sheet)//2):
+for i in range(0,len(patient_sheet)//3):
     row = patient_sheet.iloc[i]
     patient_id = row['Patient_ID']
     patient_subID = row['Patient_subID']
@@ -55,7 +55,7 @@ for i in range(0,len(patient_sheet)//2):
         possion_hann_dose_range = [0.10,0.20]
         gaussian_custom_dose_range = [0.15,0.25]
         
-        for k in range(0,3):
+        for k in range(0,2):
             save_folder_k = os.path.join(save_folder_case, noise_type+'_random_'+str(k));ff.make_folder([save_folder_k])
             if os.path.isfile(os.path.join(save_folder_k,'recon.nii.gz')):
                 print('already done, continue')
