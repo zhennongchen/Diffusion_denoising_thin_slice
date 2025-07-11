@@ -57,6 +57,7 @@ class Dataset_2D(Dataset):
         slice_range, # None or [a,b]
 
         supervision, # supervised or unsupervised
+        target, # mean or current
 
         histogram_equalization,
         background_cutoff, 
@@ -81,6 +82,7 @@ class Dataset_2D(Dataset):
         self.patch_size = patch_size
 
         self.supervision = supervision
+        self.target = target
 
         self.histogram_equalization = histogram_equalization
         self.background_cutoff = background_cutoff
@@ -168,7 +170,6 @@ class Dataset_2D(Dataset):
 
             if self.supervision == 'unsupervised':
                 self.current_x0_data = np.copy(self.current_condition_data)
-                # print('in unsupervised case, current x0 data is: ', self.current_x0_data.shape)
 
             # define a list of random slice numbers
             if self.slice_range == None:
@@ -181,7 +182,7 @@ class Dataset_2D(Dataset):
                 self.slice_index_list = self.slice_index_list[:self.num_slices_per_image]
             else:
                 self.slice_index_list = np.random.permutation(np.arange(total_slice_range[0], total_slice_range[1]))[:self.num_slices_per_image]
-            # print('in this condition case, slice index list is: ', self.slice_index_list)
+            print('in this condition case, slice index list is: ', self.slice_index_list)
 
         # pick the slice
         # print('pick the slice: ', self.slice_index_list[s])
@@ -193,21 +194,31 @@ class Dataset_2D(Dataset):
             random_origin_x, random_origin_y = random.randint(0, x_shape - self.patch_size[0]), random.randint(0, y_shape - self.patch_size[1])
             # print('x range is: ', random_origin_x, random_origin_x + self.patch_size[0], ' and y range is: ', random_origin_y, random_origin_y + self.patch_size[1])
 
+        # target image
         x0_image_data = np.copy(self.current_x0_data)[:,:,s] # we have clean data
+        if self.target == 'mean':
+            x0_image_data = (self.current_x0_data[:,:,s-1] + self.current_x0_data[:,:,s+1]) / 2
+        # crop the patch
         if self.num_patches_per_slice != None:
             x0_image_data = x0_image_data[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
-            
+        
+        # condition image
         if self.supervision == 'supervised':
             condition_image_data = np.copy(self.current_condition_data)[:,:,s]
             if self.num_patches_per_slice != None:
                 condition_image_data = condition_image_data[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
-        else:
-            condition_image_data1 = np.copy(self.current_condition_data)[:,:,s-1]
-            condition_image_data2 = np.copy(self.current_condition_data)[:,:,s+1]
-            if self.num_patches_per_slice != None:
-                condition_image_data1 = condition_image_data1[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
-                condition_image_data2 = condition_image_data2[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
-            condition_image_data = np.stack([condition_image_data1, condition_image_data2], axis = -1)
+        elif self.supervision == 'unsupervised':
+            if self.target == 'current': # use neighboring slices as condition
+                condition_image_data1 = np.copy(self.current_condition_data)[:,:,s-1]
+                condition_image_data2 = np.copy(self.current_condition_data)[:,:,s+1]
+                if self.num_patches_per_slice != None:
+                    condition_image_data1 = condition_image_data1[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
+                    condition_image_data2 = condition_image_data2[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
+                condition_image_data = np.stack([condition_image_data1, condition_image_data2], axis = -1)
+            elif self.target == 'mean': # use current slice as condition
+                condition_image_data = np.copy(self.current_condition_data)[:,:,s]
+                if self.num_patches_per_slice != None:
+                    condition_image_data = condition_image_data[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
             # print('shape of condition image data: ', condition_image_data.shape)
 
         # augmentation
@@ -223,9 +234,12 @@ class Dataset_2D(Dataset):
         x0_image_data = torch.from_numpy(x0_image_data).unsqueeze(0).float()
         if self.supervision == 'supervised':
             condition_image_data = torch.from_numpy(condition_image_data).unsqueeze(0).float()
-        else:
-            condition_image_data = np.transpose(condition_image_data, (2,0,1))
-            condition_image_data = torch.from_numpy(condition_image_data).float()
+        elif self.supervision == 'unsupervised':
+            if self.target == 'current':
+                condition_image_data = np.transpose(condition_image_data, (2,0,1))
+                condition_image_data = torch.from_numpy(condition_image_data).float()
+            elif self.target == 'mean':
+                condition_image_data = torch.from_numpy(condition_image_data).unsqueeze(0).float()
 
         # print('shape of x0 image data: ', x0_image_data.shape, ' and condition image data: ', condition_image_data.shape)
         return x0_image_data, condition_image_data

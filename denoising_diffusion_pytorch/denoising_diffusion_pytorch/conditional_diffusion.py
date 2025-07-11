@@ -32,7 +32,7 @@ from ema_pytorch import EMA
 from accelerate import Accelerator
 
 from Diffusion_denoising_thin_slice.denoising_diffusion_pytorch.denoising_diffusion_pytorch.attend import Attend
-# from Diffusion_models.denoising_diffusion_pytorch.denoising_diffusion_pytorch.fid_evaluation import FIDEvaluation
+import Diffusion_denoising_thin_slice.denoising_diffusion_pytorch.denoising_diffusion_pytorch.kernel as kernel
 
 from Diffusion_denoising_thin_slice.denoising_diffusion_pytorch.denoising_diffusion_pytorch.version import __version__
 
@@ -430,7 +430,7 @@ class RandomOrLearnedSinusoidalPosEmb(nn.Module):
 class Unet(nn.Module):
     def __init__(
         self,
-        problem_dimension, # 3D or 2D
+        problem_dimension, # 3D or 2D 
         init_dim,
         out_dim,
         channels,
@@ -462,7 +462,7 @@ class Unet(nn.Module):
 
         self.problem_dimension = problem_dimension
 
-        # define some layers
+        # define some layers 
         conv_layer = nn.Conv2d if self.problem_dimension == '2D' else nn.Conv3d
         ResnetBlock = ResnetBlock2D if self.problem_dimension == '2D' else ResnetBlock3D
         Attention = Attention2D if self.problem_dimension == '2D' else Attention3D
@@ -568,6 +568,7 @@ class Unet(nn.Module):
             if exists(condition) == 0:
                 raise ValueError('condition is required for conditional diffusion')
             x = torch.cat((x, condition), dim = 1)
+            # print('after adding condition, x shape is', x.shape)
 
         x = self.init_conv(x)
         r = x.clone()
@@ -1048,27 +1049,8 @@ class GaussianDiffusion(nn.Module):
         loss = F.mse_loss(model_out, target, reduction = 'none')  #reduction='none' argument ensures that the loss is computed element-wise, without any reduction across batches.
         loss = reduce(loss, 'b ... -> b (...)', 'mean') # reduce() operates on the batch dimension (b) and potentially other dimensions (...). It reduces the loss tensor to have the same shape as the target tensor, with a mean reduction.
         loss = loss * extract(self.loss_weight, t, loss.shape)  # assign different loss weight to different timesteps
-        # if gt_for_mask is None:
-        #     loss = reduce(loss, 'b ... -> b (...)', 'mean') # reduce() operates on the batch dimension (b) and potentially other dimensions (...). It reduces the loss tensor to have the same shape as the target tensor, with a mean reduction.
-        #     loss = loss * extract(self.loss_weight, t, loss.shape)  # assign different loss weight to different timesteps
-        #     return loss.mean()
 
-        # # add mask if needed:
-        # if gt_for_mask is not None:
-        #     assert loss_weight_class is not None
-        #     mask_bone = gt_for_mask > 0.2 # intensity range for bone
-        #     mask_brain = (gt_for_mask >=-0.1) & (gt_for_mask <= 0.2) # intensity range for brain
-        #     mask_air = gt_for_mask < -0.1 # intensity range for air
-
-        #     loss_bone = reduce(loss * mask_bone, 'b ... -> b (...)', 'mean')
-        #     loss_bone = loss_bone * extract(self.loss_weight, t, loss_bone.shape) # different weights for different steps
-        #     loss_brain = reduce(loss * mask_brain, 'b ... -> b (...)', 'mean')
-        #     loss_brain = loss_brain * extract(self.loss_weight, t, loss_brain.shape)
-        #     loss_air = reduce(loss * mask_air, 'b ... -> b (...)', 'mean')
-        #     loss_air = loss_air * extract(self.loss_weight, t, loss_air.shape)
-       
-        #     return loss_weight_class[0] * loss_bone.mean() + loss_weight_class[1] * loss_brain.mean() + loss_weight_class[2] * loss_air.mean()
-        return loss.mean()
+        return loss.mean(),model_out, target
     
     def forward(self, img, condition = None, *args, **kwargs):
         if self.problem_dimension == '2D':
@@ -1077,7 +1059,9 @@ class GaussianDiffusion(nn.Module):
             b, c, h, w, d, device, img_size, = *img.shape, img.device, self.image_size
 
         t = torch.randint(0, self.num_timesteps, (b,), device=device).long() 
-        return self.p_losses(img, t, condition,*args, **kwargs)
+
+        loss, model_out, target = self.p_losses(img, t, condition, *args, **kwargs)
+        return loss, model_out, target
    
 
 # trainer class
@@ -1194,7 +1178,7 @@ class Trainer(object):
             self.accelerator.scaler.load_state_dict(data['scaler'])
 
 
-    def train(self, pre_trained_model = None ,start_step = None):
+    def train(self, pre_trained_model = None ,start_step = None, beta = 0):
         accelerator = self.accelerator
         device = accelerator.device
 
@@ -1207,7 +1191,7 @@ class Trainer(object):
             self.step = start_step
         
         self.scheduler.step_size = 1
-        val_loss = np.inf
+        val_loss = np.inf; val_diffusion_loss = np.inf; val_bias_loss = np.inf
         training_log = []
 
         with tqdm(initial = self.step, total = self.train_num_steps, disable = not accelerator.is_main_process) as pbar:
@@ -1216,7 +1200,7 @@ class Trainer(object):
                 print('training epoch: ', self.step + 1)
                 print('learning rate: ', self.scheduler.get_last_lr()[0])
 
-                average_loss = []
+                average_loss = []; average_diffusion_loss = []; average_bias_loss = []
                 count = 0
                 for batch in self.dl:
                     if count == 0 or count % self.accum_iter == 0 or count == len(self.dl) - 1 or count == len(self.dl):
@@ -1227,7 +1211,14 @@ class Trainer(object):
                     data_condition = batch_condition.to(device) if self.conditional_diffusion else None
 
                     with self.accelerator.autocast():
-                        loss = self.model(img = data_x0, condition = data_condition)
+                        diffusion_loss,model_output, target = self.model(img = data_x0, condition = data_condition)
+                        # bias loss
+                        gauss_kernel = kernel.get_gaussian_kernel(kernel_size=37, sigma=6)
+                        lowpass_out = kernel.apply_lowpass_gaussian(model_output, gauss_kernel)
+                        lowpass_condition = kernel.apply_lowpass_gaussian(torch.clone(data_condition), gauss_kernel)
+                        bias_loss = F.mse_loss(lowpass_out, lowpass_condition, reduction='mean')
+
+                        loss = diffusion_loss + beta * bias_loss
 
                     if count % self.accum_iter == 0 or count == len(self.dl) - 1 or count == len(self.dl):
                         self.accelerator.backward(loss)
@@ -1236,10 +1227,15 @@ class Trainer(object):
                         self.opt.step()
                     
                     average_loss.append(loss.item())
+                    average_diffusion_loss.append(diffusion_loss.item())
+                    average_bias_loss.append(bias_loss.item())
                     count += 1 
 
                 average_loss = sum(average_loss) / len(average_loss)
-                pbar.set_description(f'average loss: {average_loss:.4f}')
+                average_diffusion_loss = sum(average_diffusion_loss) / len(average_diffusion_loss)
+                average_bias_loss = sum(average_bias_loss) / len(average_bias_loss)
+            
+                pbar.set_description(f'average loss: {average_loss:.4f}, diffusion loss: {average_diffusion_loss:.4f}, bias loss: {average_bias_loss:.4f}')
 
                 accelerator.wait_for_everyone()
 
@@ -1259,22 +1255,38 @@ class Trainer(object):
                     print('validation at step: ', self.step)
                     self.model.eval()
                     with torch.no_grad():
-                        val_loss = []
+                        val_loss = []; val_diffusion_loss = []; val_bias_loss = []
                         for batch in self.dl_val:
                             batch_x0, batch_condition = batch
                             data_x0 = batch_x0.to(device)
                             data_condition = batch_condition.to(device) if self.conditional_diffusion else None
                             with self.accelerator.autocast():
-                                loss = self.model(img = data_x0, condition = data_condition)
+                                diffusion_loss,model_output, target = self.model(img = data_x0, condition = data_condition)
+                                # bias loss
+                                gauss_kernel = kernel.get_gaussian_kernel(kernel_size=37, sigma=6)
+                                lowpass_out = kernel.apply_lowpass_gaussian(model_output, gauss_kernel)
+                                lowpass_condition = kernel.apply_lowpass_gaussian(torch.clone(data_condition), gauss_kernel)
+                                bias_loss = F.mse_loss(lowpass_out, lowpass_condition, reduction='mean')
+
+                                loss = diffusion_loss + beta * bias_loss
                             
                             val_loss.append(loss.item())
+                            val_diffusion_loss.append(diffusion_loss.item())
+                            val_bias_loss.append(bias_loss.item())
+
                         val_loss = sum(val_loss) / len(val_loss)
-                        print('validation loss: ', val_loss)
+                        val_diffusion_loss = sum(val_diffusion_loss) / len(val_diffusion_loss)
+                        val_bias_loss = sum(val_bias_loss) / len(val_bias_loss)
+                        print('validation loss: ', val_loss, 
+                              'validation diffusion loss: ', val_diffusion_loss,
+                              'validation bias loss: ', val_bias_loss)
                     self.model.train(True)
 
                 # save the training log
-                training_log.append([self.step,self.scheduler.get_last_lr()[0], average_loss, val_loss])
-                df = pd.DataFrame(training_log,columns = ['iteration','learning_rate','training_loss','validation_loss'])
+                training_log.append([self.step,self.scheduler.get_last_lr()[0], average_loss, average_diffusion_loss, 
+                                     average_bias_loss, val_loss, val_diffusion_loss, val_bias_loss])
+                df = pd.DataFrame(training_log,columns = ['iteration','learning_rate','training_loss','training_diffusion_loss','training_bias_loss',
+                                                              'validation_loss','validation_diffusion_loss','validation_bias_loss'])
                 log_folder = os.path.join(os.path.dirname(self.results_folder),'log');ff.make_folder([log_folder])
                 df.to_excel(os.path.join(log_folder, 'training_log.xlsx'),index=False)
 
