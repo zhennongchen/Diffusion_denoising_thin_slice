@@ -42,7 +42,7 @@ for i in range(0,len(patient_sheet)//3):
     # gaussian_custom_dose_range = [0.085,0.1]
 
     # img file
-    img_file = os.path.join(main_path,'fixedCT',patient_id,patient_subID,'img_thinslice.nii.gz')
+    img_file = os.path.join(main_path,'fixedCT',patient_id,patient_subID,'img_thinslice_partial.nii.gz')
     print(img_file)
     # load img
     img_clean = nb.load(img_file).get_fdata().astype(np.float32)
