@@ -9,7 +9,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'supervised_DDPM_gaussian_2D_distilled'
+trial_name = 'unsupervised_new'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
