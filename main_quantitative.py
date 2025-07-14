@@ -10,9 +10,9 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Data_processing as Data_processing
 
-build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian.xlsx'))
+build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian_NAS.xlsx'))
 _,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [5]) 
-n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 3)
+n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 2)
 
 def compute_lpips_3d(prediction, ground_truth, max_val = None, min_val = None, net_type='vgg'):
     assert prediction.shape == ground_truth.shape, "Shape mismatch between prediction and ground truth!"
@@ -61,13 +61,13 @@ def compute_lpips_3d(prediction, ground_truth, max_val = None, min_val = None, n
 avg_slice = False
 print('avg_slice:', avg_slice)
 results = []
-for i in range(0,n.shape[0]):
+for i in range(0,2):#n.shape[0]):
     patient_id = patient_id_list[n[i]]
     patient_subid = patient_subid_list[n[i]]
     random_n = random_num_list[n[i]]
     print(patient_id, patient_subid, random_n)
 
-    gt_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_DDPM_gaussian_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch73_1/gt_img.nii.gz')
+    gt_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_gaussian_2D_mean_beta10/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch56_1/gt_img.nii.gz')
     gt_img = nb.load(gt_file).get_fdata()
     # process gt
     shape = gt_img.shape
@@ -77,7 +77,7 @@ for i in range(0,n.shape[0]):
     gt_img = np.copy(gt_img_new) if avg_slice else np.copy(gt_img)
     gt_img_brain = Data_processing.cutoff_intensity(gt_img, cutoff_low=-100, cutoff_high=100)
 
-    condition_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_DDPM_gaussian_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch73_1/condition_img.nii.gz')
+    condition_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_gaussian_2D_mean_beta10/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch56_1/condition_img.nii.gz')
     condition_img = nb.load(condition_file).get_fdata() if avg_slice == False else nb.load(condition_file).get_fdata()[:,:,1:shape[2]-1]
     condition_img_brain = Data_processing.cutoff_intensity(condition_img, cutoff_low=-100, cutoff_high=100)
 
@@ -85,7 +85,7 @@ for i in range(0,n.shape[0]):
     noise2noise_img = nb.load(noise2noise_file).get_fdata() if avg_slice == False else nb.load(noise2noise_file).get_fdata()[:,:,1:shape[2]-1]
     noise2noise_img_brain = Data_processing.cutoff_intensity(noise2noise_img, cutoff_low=-100, cutoff_high=100)
 
-    supervised_file = os.path.join('/mnt/camca_NAS/denoising/models/supervised_DDPM_possion_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch46_1/pred_img.nii.gz')
+    supervised_file = os.path.join('/mnt/camca_NAS/denoising/models/supervised_possion_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch46_1/pred_img.nii.gz')
     supervised_img = nb.load(supervised_file).get_fdata() if avg_slice == False else nb.load(supervised_file).get_fdata()[:,:,1:shape[2]-1]
     supervised_img_brain = Data_processing.cutoff_intensity(supervised_img, cutoff_low=-100, cutoff_high=100)
 
@@ -93,15 +93,15 @@ for i in range(0,n.shape[0]):
     # supervised_avg_img = nb.load(supervised_avg_file).get_fdata() if avg_slice == False else nb.load(supervised_avg_file).get_fdata()[:,:,1:shape[2]-1]
     # supervised_avg_img_brain = Data_processing.cutoff_intensity(supervised_avg_img, cutoff_low=-100, cutoff_high=100)
 
-    ddpm_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_DDPM_gaussian_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch73_1/pred_img.nii.gz')
+    ddpm_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_gaussian_2D_mean_beta10/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch56_1/pred_img.nii.gz')
     ddpm_img = nb.load(ddpm_file).get_fdata() if avg_slice == False else nb.load(ddpm_file).get_fdata()[:,:,1:shape[2]-1]
     ddpm_img_brain = Data_processing.cutoff_intensity(ddpm_img, cutoff_low=-100, cutoff_high=100)
 
-    ddpm_avg_10_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_DDPM_gaussian_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch73avg/pred_img_scans10.nii.gz')
+    ddpm_avg_10_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_gaussian_2D_mean_beta10/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch56avg/pred_img_scans10.nii.gz')
     ddpm_avg_10_img = nb.load(ddpm_avg_10_file).get_fdata() if avg_slice == False else nb.load(ddpm_avg_10_file).get_fdata()[:,:,1:shape[2]-1]
     ddpm_avg_10_img_brain = Data_processing.cutoff_intensity(ddpm_avg_10_img, cutoff_low=-100, cutoff_high=100)
 
-    ddpm_avg_20_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_DDPM_gaussian_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch73avg/pred_img_scans20.nii.gz')
+    ddpm_avg_20_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_gaussian_2D_mean_beta10/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch56avg/pred_img_scans20.nii.gz')
     ddpm_avg_20_img = nb.load(ddpm_avg_20_file).get_fdata() if avg_slice == False else nb.load(ddpm_avg_20_file).get_fdata()[:,:,1:shape[2]-1]
     ddpm_avg_20_img_brain = Data_processing.cutoff_intensity(ddpm_avg_20_img, cutoff_low=-100, cutoff_high=100)
 
