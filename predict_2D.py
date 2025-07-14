@@ -11,11 +11,11 @@ import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
 ###########
-trial_name = 'unsupervised_gaussian_2D_mean_beta0'
+trial_name = 'unsupervised_gaussian_2D_mean_beta10'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
-epoch = 61
+epoch = 56
 trained_model_filename = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'models/model-' + str(epoch)+ '.pt')
 save_folder = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'pred_images'); os.makedirs(save_folder, exist_ok=True)
 
@@ -72,7 +72,7 @@ diffusion_model = ddpm.GaussianDiffusion(
     clip_or_not = True, 
     clip_range = clip_range, )
 
-for i in range(0,1):#n.shape[0]):
+for i in range(0,n.shape[0]):
     patient_id = patient_id_list[n[i]]
     patient_subid = patient_subid_list[n[i]]
     random_num = random_num_list[n[i]]
@@ -92,7 +92,7 @@ for i in range(0,1):#n.shape[0]):
     condition_img = nb.load(condition_file).get_fdata()[:,:,40:60]
 
     if do_pred_or_avg == 'pred':
-        for iteration in range(1,2):#21):
+        for iteration in range(1,21):
             print('iteration:', iteration)
 
             # make folders
