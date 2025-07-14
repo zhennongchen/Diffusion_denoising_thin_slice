@@ -11,15 +11,24 @@ import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
 ###########
-trial_name = 'supervised_DDPM_possion_2D'
+trial_name = 'unsupervised_gaussian_2D_mean_beta10'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
-epoch = 33
+
+epoch = 56
 trained_model_filename = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'models/model-' + str(epoch)+ '.pt')
 save_folder = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'pred_images'); os.makedirs(save_folder, exist_ok=True)
 
-image_size = [512,512]
+# bias 
+beta = 10
 
+# model condition 
+# if 'mean' in trial_name: condition on current slice, target the mean of neighboring slices
+# else: condition on neighboring slices, target the current slice
+condition_channel = 1 if (supervision == 'supervised') or ('mean' in trial_name) else 2
+target = 'mean' if 'mean' in trial_name else 'current'
+
+image_size = [512,512]
 objective = 'pred_x0'
 sampling_timesteps = 100
 
@@ -34,7 +43,7 @@ do_pred_or_avg = 'pred'
 ###########
 build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian_local.xlsx'))
 _,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [5]) 
-n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 2, interval = 3)
+n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 2)
 print('total number:', n.shape[0])
 # x0_list = x0_list[0:1]; condition_list = condition_list[0:1]
 
@@ -44,18 +53,12 @@ model = ddpm.Unet(
     out_dim = 1,
     channels = 1, 
     conditional_diffusion = True,
-    condition_channels = 1 if supervision == 'supervised' else 2,
+    condition_channels = condition_channel,
 
     downsample_list = (True, True, True, False),
     upsample_list = (True, True, True, False),
     full_attn = (None, None, False, True),)
 
-# diffusion_model = edm.EDM(
-#     model,
-#     image_size = image_size,
-#     num_sample_steps = 100,
-#     clip_or_not = True,
-#     clip_range = clip_range,)
 
 diffusion_model = ddpm.GaussianDiffusion(
     model,
@@ -69,7 +72,7 @@ diffusion_model = ddpm.GaussianDiffusion(
     clip_or_not = True, 
     clip_range = clip_range, )
 
-for i in range(n.shape[0]//3*2,n.shape[0]):
+for i in range(0,1):#n.shape[0]):
     patient_id = patient_id_list[n[i]]
     patient_subid = patient_subid_list[n[i]]
     random_num = random_num_list[n[i]]
@@ -81,13 +84,13 @@ for i in range(n.shape[0]//3*2,n.shape[0]):
 
     # get the ground truth image
     gt_img = nb.load(x0_file)
-    affine = gt_img.affine; gt_img = gt_img.get_fdata()[:,:,30:80]
+    affine = gt_img.affine; gt_img = gt_img.get_fdata()[:,:,40:60]
 
     # get the condition image
-    condition_img = nb.load(condition_file).get_fdata()[:,:,30:80]
+    condition_img = nb.load(condition_file).get_fdata()[:,:,40:60]
 
     if do_pred_or_avg == 'pred':
-        for iteration in range(1,2):
+        for iteration in range(0,20):
             print('iteration:', iteration)
 
             # make folders
@@ -101,14 +104,15 @@ for i in range(n.shape[0]//3*2,n.shape[0]):
             # generator
             generator = Generator.Dataset_2D(
                 supervision = supervision,
+                target = target,
 
                 img_list = np.array([x0_file]),
                 condition_list = np.array([condition_file]),
                 image_size = image_size,
 
-                num_slices_per_image = 50, 
+                num_slices_per_image = 20, 
                 random_pick_slice = False,
-                slice_range = [30,80],
+                slice_range = [40,60],
 
                 histogram_equalization = histogram_equalization,
                 background_cutoff = background_cutoff,
@@ -129,11 +133,7 @@ for i in range(n.shape[0]//3*2,n.shape[0]):
             if iteration == 1:
                 nb.save(nb.Nifti1Image(gt_img, affine), os.path.join(save_folder_case, 'gt_img.nii.gz'))
                 nb.save(nb.Nifti1Image(condition_img, affine), os.path.join(save_folder_case, 'condition_img.nii.gz'))
-                # # # also save the possion noise image
-                # if 'possion' in trial_name:
-                #     possion_file = os.path.join('/workspace/Documents/Data/denoising/simulation', patient_id, patient_subid, 'possion_random_' + str(random_num), 'recon.nii.gz')
-                #     possion_img = nb.load(possion_file).get_fdata()[:,:,30:80]
-                #     nb.save(nb.Nifti1Image(possion_img, affine), os.path.join(save_folder_case, 'possion_img.nii.gz'))
+       
 
     if do_pred_or_avg == 'avg':
 
