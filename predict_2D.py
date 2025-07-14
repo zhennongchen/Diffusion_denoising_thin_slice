@@ -90,7 +90,7 @@ for i in range(0,1):#n.shape[0]):
     condition_img = nb.load(condition_file).get_fdata()[:,:,40:60]
 
     if do_pred_or_avg == 'pred':
-        for iteration in range(0,20):
+        for iteration in range(1,21):
             print('iteration:', iteration)
 
             # make folders
