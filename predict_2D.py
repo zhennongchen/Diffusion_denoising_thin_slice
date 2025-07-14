@@ -84,18 +84,24 @@ for i in range(0,1):#n.shape[0]):
 
     # get the ground truth image
     gt_img = nb.load(x0_file)
+    print('x0_file:', x0_file, 'shape:', gt_img.get_fdata().shape)
     affine = gt_img.affine; gt_img = gt_img.get_fdata()[:,:,40:60]
 
     # get the condition image
+    print('condition_file:', condition_file, 'shape: ', nb.load(condition_file).get_fdata().shape)
     condition_img = nb.load(condition_file).get_fdata()[:,:,40:60]
 
     if do_pred_or_avg == 'pred':
-        for iteration in range(1,21):
+        for iteration in range(1,2):#21):
             print('iteration:', iteration)
 
             # make folders
             ff.make_folder([os.path.join(save_folder, patient_id), os.path.join(save_folder, patient_id, patient_subid), os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num))])
             save_folder_case = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'_'+str(iteration)); os.makedirs(save_folder_case, exist_ok=True)
+
+            if iteration == 1:
+                nb.save(nb.Nifti1Image(gt_img, affine), os.path.join(save_folder_case, 'gt_img.nii.gz'))
+                nb.save(nb.Nifti1Image(condition_img, affine), os.path.join(save_folder_case, 'condition_img.nii.gz'))
 
             if os.path.isfile(os.path.join(save_folder_case, 'pred_img.nii.gz')):
                 print('already done')
