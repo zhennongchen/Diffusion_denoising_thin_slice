@@ -49,10 +49,10 @@ for i in range(0, n.shape[0]):
 
     # get the ground truth image
     gt_img = nb.load(x0_file)
-    affine = gt_img.affine; gt_img = gt_img.get_fdata()[:,:,40:60]
+    affine = gt_img.affine; gt_img = gt_img.get_fdata()[:,:,30:80]
 
     # get the condition image
-    condition_img = nb.load(condition_file).get_fdata()[:,:,40:60]
+    condition_img = nb.load(condition_file).get_fdata()[:,:,30:80]
 
     # make folders
     ff.make_folder([os.path.join(save_folder, patient_id), os.path.join(save_folder, patient_id, patient_subid), os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num))])

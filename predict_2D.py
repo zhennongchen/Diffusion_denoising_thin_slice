@@ -38,7 +38,7 @@ maximum_cutoff = 2000
 normalize_factor = 'equation'
 clip_range = [-1,1]
 
-do_pred_or_avg = 'pred'
+do_pred_or_avg = 'avg'
 
 ###########
 build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian_local.xlsx'))
@@ -92,7 +92,7 @@ for i in range(0,n.shape[0]):
     condition_img = nb.load(condition_file).get_fdata()[:,:,30:80]
 
     if do_pred_or_avg == 'pred':
-        for iteration in range(1,21):
+        for iteration in range(1,2):
             print('iteration:', iteration)
 
             # make folders
