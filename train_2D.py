@@ -2,14 +2,14 @@ import sys
 sys.path.append('/workspace/Documents')
 import os
 import torch
-import numpy as np
+import numpy as np 
 import Diffusion_denoising_thin_slice.denoising_diffusion_pytorch.denoising_diffusion_pytorch.conditional_diffusion as ddpm
 import Diffusion_denoising_thin_slice.denoising_diffusion_pytorch.denoising_diffusion_pytorch.conditional_EDM as edm
 import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'unsupervised_gaussian_2D_mean_beta10'
+trial_name = 'unsupervised_gaussian_2D_current_beta10'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
@@ -22,8 +22,8 @@ beta = 10
 condition_channel = 1 if (supervision == 'supervised') or ('mean' in trial_name) else 2
 target = 'mean' if 'mean' in trial_name else 'current'
 
-pre_trained_model = os.path.join('/mnt/camca_NAS/denoising/models',trial_name, 'models', 'model-64.pt')
-start_step = 64
+pre_trained_model = None#os.path.join('/mnt/camca_NAS/denoising/models',trial_name, 'models', 'model-64.pt')
+start_step = 0
 image_size = [512,512]
 num_patches_per_slice = 2
 patch_size = [128,128]
