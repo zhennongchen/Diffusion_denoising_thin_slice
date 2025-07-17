@@ -76,9 +76,10 @@ for i in range(0,n.shape[0]):
     gt_img = nb.load(gt_file).get_fdata()
     # process gt
     shape = gt_img.shape
-    gt_img_new = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2]-2))
+    gt_img_new = np.copy(gt_img)
     for i in range(1, gt_img.shape[2]-1):
-        gt_img_new[:,:,i-1] = np.mean(gt_img[:,:,i-1:i+2], axis = 2)
+        gt_img_new[:,:,i] = (gt_img[:,:,i-1] + gt_img[:,:,i+1]) / 2
+    nb.save(nb.Nifti1Image(gt_img_new, nb.load(gt_file).affine), os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_gaussian_2D_mean_beta10/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch56_1/gt_img_avg_slice.nii.gz'))
     gt_img = np.copy(gt_img_new) if avg_slice else np.copy(gt_img)
     gt_img_brain = Data_processing.cutoff_intensity(gt_img, cutoff_low=-100, cutoff_high=100)
 

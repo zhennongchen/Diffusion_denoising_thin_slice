@@ -36,9 +36,13 @@ import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 #     #     shutil.copytree(original_folder_fixed, des_folder_fixed, dirs_exist_ok=True)
 
 main_path = '/mnt/camca_NAS/motion_correction/data'
-patients = ff.find_all_target_files(['*/*/random*'],os.path.join(main_path, 'simulated_data_3D_spline'))
+patients = ff.find_all_target_files(['*/*/random*'],os.path.join(main_path, 'simulated_data_3D_spline_6degrees'))
 for p in patients:
-    print(p)
-    shutil.rmtree(p, ignore_errors=True)
+
+    time = ff.find_timeframe(p,0, '_')
+    
+    if time > 20:
+        print(time, p)
+        shutil.rmtree(p, ignore_errors=True)
 
 

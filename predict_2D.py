@@ -142,9 +142,9 @@ for i in range(0,n.shape[0]):
 
         save_folder_avg = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'avg'); os.makedirs(save_folder_avg, exist_ok=True)
 
-        if os.path.isfile(os.path.join(save_folder_avg, 'pred_img_scans20.nii.gz')):
-            print('already done')
-            continue
+        # if os.path.isfile(os.path.join(save_folder_avg, 'pred_img_scans20.nii.gz')):
+        #     print('already done')
+        #     continue
         
         made_predicts = ff.sort_timeframe(ff.find_all_target_files(['epoch' + str(epoch)+'_*'], os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num))),0,'_','/')
         print(made_predicts)
@@ -154,7 +154,7 @@ for i in range(0,n.shape[0]):
         for j in range(total_predicts):
             loaded_data[:,:,:,j] = nb.load(os.path.join(made_predicts[j],'pred_img.nii.gz')).get_fdata()
 
-        for avg_num in [10,20]:#range(1,total_predicts+1):
+        for avg_num in [2,4,6,8,10,12,14,16,18,20]:#range(1,total_predicts+1):
             print('avg_num:', avg_num)
             predicts_avg = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2], avg_num))
             print('predict_num:', avg_num)

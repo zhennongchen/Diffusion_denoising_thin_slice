@@ -1105,7 +1105,7 @@ class Trainer(object):
         self.conditional_diffusion = self.model.conditional_diffusion
         print('conditional diffusion: ', self.conditional_diffusion)
         self.channels = diffusion_model.channels
-
+ 
         self.batch_size = train_batch_size
         self.train_num_steps = train_num_steps
         self.accum_iter = accum_iter
