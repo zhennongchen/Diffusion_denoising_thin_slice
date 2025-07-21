@@ -199,7 +199,7 @@ for i in range(0,5):
     # mae_brain_ddpm_beta20, rmse_brain_ddpm_beta20, ssim_brain_ddpm_beta20, psnr_brain_ddpm_beta20,
     mae_brain_ddpm_avg_10, rmse_brain_ddpm_avg_10, ssim_brain_ddpm_avg_10, psnr_brain_ddpm_avg_10, 
     mae_brain_ddpm_avg_20, rmse_brain_ddpm_avg_20, ssim_brain_ddpm_avg_20, psnr_brain_ddpm_avg_20, 
-    lpips_brain_motion, lpips_brain_n2n, lpips_brain_supervised, lpips_brain_ddpm, lpips_brain_ddpm_beta0,lpips_brain_ddpm_beta20, lpips_brain_ddpm_avg_10, lpips_brain_ddpm_avg_20])
+    lpips_brain_motion, lpips_brain_n2n, lpips_brain_supervised, lpips_brain_ddpm, lpips_brain_ddpm_beta0, lpips_brain_ddpm_avg_10, lpips_brain_ddpm_avg_20])
     
 
     df = pd.DataFrame(results, columns = ['patient_id', 'patient_subid', 'random_n', 
