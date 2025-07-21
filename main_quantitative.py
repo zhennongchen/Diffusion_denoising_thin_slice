@@ -132,7 +132,7 @@ for i in range(0,5):
     ddpm_avg_10_img_brain_ROI = np.clip(ddpm_avg_10_img_brain[x-50: x+50, y-50: y+50, 20:40],0,100)
     ddpm_avg_20_img_brain_ROI = np.clip(ddpm_avg_20_img_brain[x-50: x+50, y-50: y+50, 20:40],0,100)
     mean_gt, mean_condition, mean_n2n, mean_supervised, mean_ddpm, mean_ddpm_beta0, mean_ddpm_avg_10, mean_ddpm_avg_20 = np.mean(gt_img_brain_ROI), np.mean(condition_img_brain_ROI), np.mean(noise2noise_img_brain_ROI), np.mean(supervised_img_brain_ROI), np.mean(ddpm_img_brain_ROI), np.mean(ddpm_beta0_img_brain_ROI),  np.mean(ddpm_avg_10_img_brain_ROI), np.mean(ddpm_avg_20_img_brain_ROI)
-    results_mean.append([patient_id, patient_subid, random_n, mean_gt, mean_condition, mean_n2n, mean_supervised, mean_ddpm, mean_ddpm_beta0, mean_ddpm_beta20, mean_ddpm_avg_10, mean_ddpm_avg_20])
+    results_mean.append([patient_id, patient_subid, random_n, mean_gt, mean_condition, mean_n2n, mean_supervised, mean_ddpm, mean_ddpm_beta0,  mean_ddpm_avg_10, mean_ddpm_avg_20])
     df_mean = pd.DataFrame(results_mean, columns = ['patient_id', 'patient_subid', 'random_n',
     'mean_gt', 'mean_condition', 'mean_n2n', 'mean_supervised', 'mean_ddpm', 'mean_ddpm_beta0',# 'mean_ddpm_beta20', 
     'mean_ddpm_avg_10', 'mean_ddpm_avg_20'])
