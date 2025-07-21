@@ -22,8 +22,8 @@ beta = 10
 condition_channel = 1 if (supervision == 'supervised') or ('mean' in trial_name) else 2
 target = 'mean' if 'mean' in trial_name else 'current'
 
-pre_trained_model = None#os.path.join('/mnt/camca_NAS/denoising/models',trial_name, 'models', 'model-64.pt')
-start_step = 0
+pre_trained_model = os.path.join('/mnt/camca_NAS/denoising/models',trial_name, 'models', 'model-49.pt')
+start_step = 49
 image_size = [512,512]
 num_patches_per_slice = 2
 patch_size = [128,128]
