@@ -38,7 +38,7 @@ normalize_factor = 'equation'
 ###########################
 # define train
 if supervision == 'supervised':
-    build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_possion_local.xlsx'))
+    build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_poisson_local.xlsx'))
     if 'distilled' in trial_name:
         build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_distilled_model_train_test_local.xlsx'))
 else:

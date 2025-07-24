@@ -87,13 +87,9 @@ def compute_lpips_3d(prediction, ground_truth,mask = None, max_val = None, min_v
 #     noise2noise_img_brain = Data_processing.cutoff_intensity(noise2noise_img, cutoff_low=-100, cutoff_high=100)
 
 #     # supervised method
-#     supervised_file = os.path.join('/mnt/camca_NAS/denoising/models/supervised_possion/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch58_1/pred_img.nii.gz')
+#     supervised_file = os.path.join('/mnt/camca_NAS/denoising/models/supervised_poisson/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch58_1/pred_img.nii.gz')
 #     supervised_img = nb.load(supervised_file).get_fdata() 
 #     supervised_img_brain = Data_processing.cutoff_intensity(supervised_img, cutoff_low=-100, cutoff_high=100)
-
-#     # supervised_avg_file = os.path.join('/mnt/camca_NAS/denoising/models/supervised_DDPM_possion_2D/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch50final/pred_img.nii.gz')
-#     # supervised_avg_img = nb.load(supervised_avg_file).get_fdata() 
-#     # supervised_avg_img_brain = Data_processing.cutoff_intensity(supervised_avg_img, cutoff_low=-100, cutoff_high=100)
 
 #     # our method (unsupervised), beta = 0, 1 inference
 #     unsupervised_beta0_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_gaussian_current_beta0/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch61_1/pred_img.nii.gz')
@@ -243,36 +239,36 @@ def compute_lpips_3d(prediction, ground_truth,mask = None, max_val = None, min_v
 #     df.to_excel(os.path.join('/mnt/camca_NAS/denoising/models', file_name), index = False)
 
 ### effect of the number of inferences
-results_inference = [] 
-for i in range(0,n.shape[0]):
-    patient_id = patient_id_list[n[i]]
-    patient_subid = patient_subid_list[n[i]]
-    random_n = random_num_list[n[i]]
-    print(patient_id, patient_subid, random_n)
-    r = [patient_id, patient_subid, random_n]
+# results_inference = [] 
+# for i in range(0,n.shape[0]):
+#     patient_id = patient_id_list[n[i]]
+#     patient_subid = patient_subid_list[n[i]]
+#     random_n = random_num_list[n[i]]
+#     print(patient_id, patient_subid, random_n)
+#     r = [patient_id, patient_subid, random_n]
 
-    gt_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_gaussian_current_beta0/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch61_1/gt_img.nii.gz')
-    gt_img = nb.load(gt_file).get_fdata()
-    gt_img_brain = Data_processing.cutoff_intensity(gt_img, cutoff_low=-100, cutoff_high=100)
+#     gt_file = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_gaussian_current_beta0/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch61_1/gt_img.nii.gz')
+#     gt_img = nb.load(gt_file).get_fdata()
+#     gt_img_brain = Data_processing.cutoff_intensity(gt_img, cutoff_low=-100, cutoff_high=100)
 
-    files = ff.sort_timeframe(ff.find_all_target_files(['pred_img_scans*'], os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_gaussian_current_beta0/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch61avg')),2,'s','.')
+#     files = ff.sort_timeframe(ff.find_all_target_files(['pred_img_scans*'], os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_gaussian_current_beta0/pred_images', patient_id, patient_subid,'random_'+str(random_n), 'epoch61avg')),2,'s','.')
     
-    for k in range(0,len(files)):
-        img = nb.load(files[k]).get_fdata() 
-        img_brain = Data_processing.cutoff_intensity(img, cutoff_low=-100, cutoff_high=100)
-        mae, _, rmsm, _, ssim,_ = ff.compare(img_brain, gt_img_brain, cutoff_low = 0, cutoff_high = 100)
-        lpips = compute_lpips_3d(img_brain, gt_img_brain, max_val = 100, min_val = 0)
-        print('when avg num:', k+1, ' mae:', mae, 'rmse:', rmsm, 'ssim:', ssim, 'lpips:', lpips)
-        r += [mae, rmsm, ssim, lpips]
+#     for k in range(0,len(files)):
+#         img = nb.load(files[k]).get_fdata() 
+#         img_brain = Data_processing.cutoff_intensity(img, cutoff_low=-100, cutoff_high=100)
+#         mae, _, rmsm, _, ssim,_ = ff.compare(img_brain, gt_img_brain, cutoff_low = 0, cutoff_high = 100)
+#         lpips = compute_lpips_3d(img_brain, gt_img_brain, max_val = 100, min_val = 0)
+#         print('when avg num:', k+1, ' mae:', mae, 'rmse:', rmsm, 'ssim:', ssim, 'lpips:', lpips)
+#         r += [mae, rmsm, ssim, lpips]
 
-    results_inference.append(r)
+#     results_inference.append(r)
 
-    columns = ['patient_id', 'patient_subid', 'random_n']
-    for k in range(0,len(files)):
-        columns += ['mae_inference'+str(k+1), 'rmse_inference'+str(k+1), 'ssim_inference'+str(k+1), 'lpips_inference'+str(k+1)]
-    df = pd.DataFrame(results_inference, columns = columns)
-    file_name = 'quantitative_results_multiple_inferences.xlsx' 
-    df.to_excel(os.path.join('/mnt/camca_NAS/denoising/models', file_name), index = False)
+#     columns = ['patient_id', 'patient_subid', 'random_n']
+#     for k in range(0,len(files)):
+#         columns += ['mae_inference'+str(k+1), 'rmse_inference'+str(k+1), 'ssim_inference'+str(k+1), 'lpips_inference'+str(k+1)]
+#     df = pd.DataFrame(results_inference, columns = columns)
+#     file_name = 'quantitative_results_multiple_inferences.xlsx' 
+#     df.to_excel(os.path.join('/mnt/camca_NAS/denoising/models', file_name), index = False)
 
     
 
