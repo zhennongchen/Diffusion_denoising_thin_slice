@@ -43,6 +43,7 @@ do_pred_or_avg = 'pred'
 ###########
 build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian_NAS.xlsx'))
 _,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [0,1,2,3,4]) 
+print('total cases:', patient_id_list.shape[0])
 n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 2)
 print('total number:', n.shape[0])
 # x0_list = x0_list[0:1]; condition_list = condition_list[0:1]
@@ -72,7 +73,7 @@ diffusion_model = ddpm.GaussianDiffusion(
     clip_or_not = True, 
     clip_range = clip_range, )
 
-for i in range(0,n.shape[0]):
+for i in range(0,n.shape[0]//3):
     patient_id = patient_id_list[n[i]]
     patient_subid = patient_subid_list[n[i]]
     random_num = random_num_list[n[i]]
@@ -80,7 +81,6 @@ for i in range(0,n.shape[0]):
     condition_file = condition_list[n[i]]
 
     print(i,patient_id, patient_subid, random_num)
-
 
     # get the ground truth image
     gt_img = nb.load(x0_file)
@@ -140,6 +140,8 @@ for i in range(0,n.shape[0]):
 
     if do_pred_or_avg == 'avg':
 
+        assert os.path.isdir(os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num))) == 1
+
         save_folder_avg = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'avg'); os.makedirs(save_folder_avg, exist_ok=True)
 
         # if os.path.isfile(os.path.join(save_folder_avg, 'pred_img_scans20.nii.gz')):
@@ -154,7 +156,7 @@ for i in range(0,n.shape[0]):
         for j in range(total_predicts):
             loaded_data[:,:,:,j] = nb.load(os.path.join(made_predicts[j],'pred_img.nii.gz')).get_fdata()
 
-        for avg_num in [10,20]:#[2,4,6,8,10,12,14,16,18,20]:#range(1,total_predicts+1):
+        for avg_num in [20]:#[2,4,6,8,10,12,14,16,18,20]:#range(1,total_predicts+1):
             print('avg_num:', avg_num)
             predicts_avg = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2], avg_num))
             print('predict_num:', avg_num)
