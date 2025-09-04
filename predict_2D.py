@@ -73,7 +73,7 @@ diffusion_model = ddpm.GaussianDiffusion(
     clip_or_not = True, 
     clip_range = clip_range, )
 
-for i in range(0,n.shape[0]//3):
+for i in range(n.shape[0]//3*2, n.shape[0]):
     patient_id = patient_id_list[n[i]]
     patient_subid = patient_subid_list[n[i]]
     random_num = random_num_list[n[i]]
