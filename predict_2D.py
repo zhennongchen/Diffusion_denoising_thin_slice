@@ -140,16 +140,16 @@ for i in range(0, n.shape[0]):
 
     if do_pred_or_avg == 'avg':
 
-        assert os.path.isdir(os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num))) == 1
-
         save_folder_avg = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'avg'); os.makedirs(save_folder_avg, exist_ok=True)
 
-        # if os.path.isfile(os.path.join(save_folder_avg, 'pred_img_scans20.nii.gz')):
-        #     print('already done')
-        #     continue
+        if os.path.isfile(os.path.join(save_folder_avg, 'pred_img_scans20.nii.gz')):
+            print('already done')
+            continue
         
         made_predicts = ff.sort_timeframe(ff.find_all_target_files(['epoch' + str(epoch)+'_*'], os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num))),0,'_','/')
-        # print(made_predicts)
+        if len(made_predicts) == 0:
+            print('skip, no made predicts')
+            continue
         total_predicts = 0
         for jj in range(len(made_predicts)):
             total_predicts += os.path.isfile(os.path.join(made_predicts[jj],'pred_img.nii.gz'))
