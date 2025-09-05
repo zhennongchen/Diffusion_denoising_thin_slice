@@ -38,7 +38,7 @@ maximum_cutoff = 2000
 normalize_factor = 'equation'
 clip_range = [-1,1]
 
-do_pred_or_avg = 'pred'
+do_pred_or_avg = 'avg'
 
 ###########
 build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian_NAS.xlsx'))
@@ -73,7 +73,7 @@ diffusion_model = ddpm.GaussianDiffusion(
     clip_or_not = True, 
     clip_range = clip_range, )
 
-for i in range(n.shape[0]//3*2, n.shape[0]):
+for i in range(0, n.shape[0]):
     patient_id = patient_id_list[n[i]]
     patient_subid = patient_subid_list[n[i]]
     random_num = random_num_list[n[i]]
@@ -149,8 +149,14 @@ for i in range(n.shape[0]//3*2, n.shape[0]):
         #     continue
         
         made_predicts = ff.sort_timeframe(ff.find_all_target_files(['epoch' + str(epoch)+'_*'], os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num))),0,'_','/')
-        print(made_predicts)
-        total_predicts = len(made_predicts)
+        # print(made_predicts)
+        total_predicts = 0
+        for jj in range(len(made_predicts)):
+            total_predicts += os.path.isfile(os.path.join(made_predicts[jj],'pred_img.nii.gz'))
+        print('total made predicts:', total_predicts)
+        if total_predicts != 20:
+            print('skip, not enough predicts')
+            continue
 
         loaded_data = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2], total_predicts))
         for j in range(total_predicts):
