@@ -70,7 +70,7 @@ build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_l
 _,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [0,1,2,3,4,5]) 
 n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 2)
 
-for i in range(0,1):#n.shape[0]):
+for i in range(0,n.shape[0]):
     patient_id = patient_id_list[n[i]]
     patient_subid = patient_subid_list[n[i]]
     random_num = random_num_list[n[i]]
@@ -87,7 +87,7 @@ for i in range(0,1):#n.shape[0]):
         shutil.copy(data, os.path.join(des_folder, 'pred_img_scans20.nii.gz'))
         # print('copied:', data, 'to', os.path.join(des_folder, 'pred_img_scans20.nii.gz'))
 
-    condition = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_DDPM_gaussian_2D/pred_images', patient_id, patient_subid, 'random_' + str(random_num), 'epoch73_1/condition_img.nii.gz')
+    condition = os.path.join('/mnt/camca_NAS/denoising/models/unsupervised_gaussian_current_beta0/pred_images', patient_id, patient_subid, 'random_' + str(random_num), 'epoch61_1/condition_img.nii.gz')
     des_folder = os.path.join(local_path, 'pred_images', patient_id, patient_subid, 'random_' + str(random_num))
     ff.make_folder([os.path.join(local_path, 'pred_images'), os.path.join(local_path, 'pred_images', patient_id), os.path.join(local_path, 'pred_images', patient_id, patient_subid), os.path.join(local_path, 'pred_images', patient_id, patient_subid, 'random_' + str(random_num))])
     if not os.path.exists(os.path.join(des_folder, 'condition_img.nii.gz')):
