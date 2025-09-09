@@ -195,7 +195,7 @@ class Dataset_2D(Dataset):
             # print('x range is: ', random_origin_x, random_origin_x + self.patch_size[0], ' and y range is: ', random_origin_y, random_origin_y + self.patch_size[1])
 
         # target image
-        x0_image_data = np.copy(self.current_x0_data)[:,:,s] # we have clean data
+        x0_image_data = np.copy(self.current_x0_data)[:,:,s] 
         if self.target == 'mean':
             x0_image_data = (self.current_x0_data[:,:,s-1] + self.current_x0_data[:,:,s+1]) / 2
         # crop the patch

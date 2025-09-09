@@ -9,12 +9,12 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'unsupervised_gaussian_2D_current_beta10'
+trial_name = 'supervised_gaussian_2D_current_beta0_distilled'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
 # bias 
-beta = 10
+beta = 0
 
 # model condition 
 # if 'mean' in trial_name: condition on current slice, target the mean of neighboring slices
@@ -22,8 +22,8 @@ beta = 10
 condition_channel = 1 if (supervision == 'supervised') or ('mean' in trial_name) else 2
 target = 'mean' if 'mean' in trial_name else 'current'
 
-pre_trained_model = os.path.join('/mnt/camca_NAS/denoising/models',trial_name, 'models', 'model-49.pt')
-start_step = 49
+pre_trained_model = None#os.path.join('/mnt/camca_NAS/denoising/models',trial_name, 'models', 'model-49.pt')
+start_step = 0
 image_size = [512,512]
 num_patches_per_slice = 2
 patch_size = [128,128]
@@ -40,6 +40,7 @@ normalize_factor = 'equation'
 if supervision == 'supervised':
     build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_poisson_local.xlsx'))
     if 'distilled' in trial_name:
+        print('distilled model')
         build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_distilled_model_train_test_local.xlsx'))
 else:
     build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian_local.xlsx'))
@@ -112,7 +113,7 @@ generator_val = Generator.Dataset_2D(
 
         num_slices_per_image = 20,
         random_pick_slice = False,
-        slice_range = [50,70],
+        slice_range = [20,40],#[50,70],
 
         num_patches_per_slice = 1,
         patch_size = [512,512],
