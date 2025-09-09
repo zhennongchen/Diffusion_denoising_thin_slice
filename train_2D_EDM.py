@@ -122,7 +122,7 @@ generator_val = Generator.Dataset_2D(
         normalize_factor = normalize_factor,)
 
 # start to train
-trainer = ddpm.Trainer(
+trainer = edm.Trainer(
     diffusion_model= diffusion_model,
     generator_train = generator_train,
     generator_val = generator_val,
@@ -138,4 +138,4 @@ trainer = ddpm.Trainer(
     validation_every = 1,)
 
 
-trainer.train(pre_trained_model=pre_trained_model, start_step= start_step, beta = beta)
+trainer.train(pre_trained_model=pre_trained_model, start_step= start_step)
