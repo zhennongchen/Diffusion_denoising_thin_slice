@@ -260,7 +260,7 @@ class EDM(nn.Module):  ### both 2D and 3D
         losses = F.mse_loss(denoised, images, reduction = 'none')
         losses = reduce(losses, 'b ... -> b', 'mean')
 
-        losses = losses * self.loss_weight(sigmas)
+        losses = losses * self.loss_weight(sigmas) 
 
         return losses.mean()
 
@@ -439,7 +439,7 @@ class Trainer(object):
                 
                 if self.step !=0 and divisible_by(self.step, self.train_lr_decay_every):
                     self.scheduler.step()
-                    
+                     
                 self.ema.update()
 
                 # do the validation if necessary

@@ -1,3 +1,4 @@
+# train distilled EDM
 import sys 
 sys.path.append('/workspace/Documents')
 import os
@@ -9,7 +10,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'supervised_gaussian'
+trial_name = 'supervised_gaussian_current_beta0_distilled_EDM'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
@@ -69,14 +70,11 @@ model = ddpm.Unet(
     full_attn = (None, None, False, True),)
 
 
-diffusion_model = ddpm.GaussianDiffusion(
+diffusion_model = edm.EDM(
     model,
     image_size = image_size if num_patches_per_slice == None else patch_size,
-    timesteps = 1000,
-    sampling_timesteps = 250,
-    objective = objective,
-    clip_or_not =False,
-    auto_normalize = False,)
+    num_sample_steps = 50,
+    clip_or_not = False,)
 
 # generator definition
 generator_train = Generator.Dataset_2D(
@@ -111,9 +109,9 @@ generator_val = Generator.Dataset_2D(
         condition_list = condition_list_val,
         image_size = image_size,
 
-        num_slices_per_image = 20,
+        num_slices_per_image = 50,
         random_pick_slice = False,
-        slice_range = [20,40],#[50,70],
+        slice_range = [0,50],#[50,70],
 
         num_patches_per_slice = 1,
         patch_size = [512,512],
