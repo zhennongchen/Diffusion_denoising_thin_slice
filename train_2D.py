@@ -13,7 +13,7 @@ trial_name = 'supervised_gaussian'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
-# bias 
+# bias  
 beta = 0
 
 # model condition 
@@ -113,7 +113,7 @@ generator_val = Generator.Dataset_2D(
 
         num_slices_per_image = 20,
         random_pick_slice = False,
-        slice_range = [20,40],#[50,70],
+        slice_range = [50,70], #[20,40]
 
         num_patches_per_slice = 1,
         patch_size = [512,512],
