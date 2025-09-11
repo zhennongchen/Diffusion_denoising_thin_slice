@@ -11,11 +11,11 @@ import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
 ###########
-trial_name = 'supervised_gaussian_current_beta0_distilled_EDM'
+trial_name = 'supervised_gaussian_beta0_distilled_EDM'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
-epoch = 97
+epoch = 160
 trained_model_filename = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'models/model-' + str(epoch)+ '.pt')
 save_folder = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'pred_images'); os.makedirs(save_folder, exist_ok=True)
 
@@ -23,10 +23,7 @@ save_folder = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'pred_
 beta = 0
 
 # model condition 
-# if 'mean' in trial_name: condition on current slice, target the mean of neighboring slices
-# else: condition on neighboring slices, target the current slice
 condition_channel = 1 if (supervision == 'supervised') or ('mean' in trial_name) else 2
-target = 'mean' if 'mean' in trial_name else 'current'
 
 image_size = [512,512]
 objective = 'pred_x0'
@@ -68,7 +65,7 @@ diffusion_model = edm.EDM(
     clip_or_not = True,
     clip_range = clip_range,)
 
-for i in range(0,1):#n.shape[0]):
+for i in range(0,n.shape[0]//2):
     patient_id = patient_id_list[n[i]]
     patient_subid = patient_subid_list[n[i]]
     random_num = random_num_list[n[i]]
@@ -102,7 +99,6 @@ for i in range(0,1):#n.shape[0]):
             # generator
             generator = Generator.Dataset_2D(
                 supervision = supervision,
-                target = target,
 
                 img_list = np.array([x0_file]),
                 condition_list = np.array([condition_file]),

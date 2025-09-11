@@ -9,7 +9,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'supervised_gaussian'
+trial_name = 'supervised_gaussian_beta0_distilled_new'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
@@ -20,9 +20,8 @@ beta = 0
 # if 'mean' in trial_name: condition on current slice, target the mean of neighboring slices
 # else: condition on neighboring slices, target the current slice
 condition_channel = 1 if (supervision == 'supervised') or ('mean' in trial_name) else 2
-target = 'mean' if 'mean' in trial_name else 'current'
 
-pre_trained_model = None#os.path.join('/mnt/camca_NAS/denoising/models',trial_name, 'models', 'model-49.pt')
+pre_trained_model = os.path.join('/mnt/camca_NAS/denoising/models','supervised_gaussian_beta0_distilled', 'models', 'model-95.pt')
 start_step = 0
 image_size = [512,512]
 num_patches_per_slice = 2
@@ -46,11 +45,11 @@ else:
     build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian_local.xlsx'))
 
 _,_,_,_, condition_list_train, x0_list_train = build_sheet.__build__(batch_list = [0,1,2,3]) 
-# x0_list_train = x0_list_train[0:1]; condition_list_train = condition_list_train[0:1]
+x0_list_train = x0_list_train[0:1]; condition_list_train = condition_list_train[0:1]
  
 # define val
 _,_,_,_, condition_list_val, x0_list_val = build_sheet.__build__(batch_list = [4])
-# x0_list_val = x0_list_val[0:1]; condition_list_val = condition_list_val[0:1]
+x0_list_val = x0_list_val[0:1]; condition_list_val = condition_list_val[0:1]
 
 print('train:', x0_list_train.shape, condition_list_train.shape, 'val:', x0_list_val.shape, condition_list_val.shape)
 print(x0_list_train[0:5], condition_list_train[0:5], x0_list_val[0:5], condition_list_val[0:5])
@@ -81,7 +80,6 @@ diffusion_model = ddpm.GaussianDiffusion(
 # generator definition
 generator_train = Generator.Dataset_2D(
         supervision = supervision,
-        target = target,
 
         img_list = x0_list_train,
         condition_list = condition_list_train,
@@ -105,7 +103,6 @@ generator_train = Generator.Dataset_2D(
 
 generator_val = Generator.Dataset_2D(
         supervision = supervision,
-        target = target,
 
         img_list = x0_list_val,
         condition_list = condition_list_val,
@@ -113,7 +110,7 @@ generator_val = Generator.Dataset_2D(
 
         num_slices_per_image = 20,
         random_pick_slice = False,
-        slice_range = [50,70], #[20,40]
+        slice_range = [20,40], #[50,70],
 
         num_patches_per_slice = 1,
         patch_size = [512,512],

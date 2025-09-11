@@ -57,7 +57,6 @@ class Dataset_2D(Dataset):
         slice_range, # None or [a,b]
 
         supervision, # supervised or unsupervised
-        target, # mean or current
 
         histogram_equalization,
         background_cutoff, 
@@ -82,7 +81,6 @@ class Dataset_2D(Dataset):
         self.patch_size = patch_size
 
         self.supervision = supervision
-        self.target = target
 
         self.histogram_equalization = histogram_equalization
         self.background_cutoff = background_cutoff
@@ -196,8 +194,8 @@ class Dataset_2D(Dataset):
 
         # target image
         x0_image_data = np.copy(self.current_x0_data)[:,:,s] 
-        if self.target == 'mean':
-            x0_image_data = (self.current_x0_data[:,:,s-1] + self.current_x0_data[:,:,s+1]) / 2
+        # if self.target == 'mean':
+        #     x0_image_data = (self.current_x0_data[:,:,s-1] + self.current_x0_data[:,:,s+1]) / 2
         # crop the patch
         if self.num_patches_per_slice != None:
             x0_image_data = x0_image_data[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
@@ -208,18 +206,13 @@ class Dataset_2D(Dataset):
             if self.num_patches_per_slice != None:
                 condition_image_data = condition_image_data[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
         elif self.supervision == 'unsupervised':
-            if self.target == 'current': # use neighboring slices as condition
-                condition_image_data1 = np.copy(self.current_condition_data)[:,:,s-1]
-                condition_image_data2 = np.copy(self.current_condition_data)[:,:,s+1]
-                if self.num_patches_per_slice != None:
-                    condition_image_data1 = condition_image_data1[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
-                    condition_image_data2 = condition_image_data2[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
-                condition_image_data = np.stack([condition_image_data1, condition_image_data2], axis = -1)
-            elif self.target == 'mean': # use current slice as condition
-                condition_image_data = np.copy(self.current_condition_data)[:,:,s]
-                if self.num_patches_per_slice != None:
-                    condition_image_data = condition_image_data[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
-            # print('shape of condition image data: ', condition_image_data.shape)
+            condition_image_data1 = np.copy(self.current_condition_data)[:,:,s-1]
+            condition_image_data2 = np.copy(self.current_condition_data)[:,:,s+1]
+            if self.num_patches_per_slice != None:
+                condition_image_data1 = condition_image_data1[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
+                condition_image_data2 = condition_image_data2[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
+            condition_image_data = np.stack([condition_image_data1, condition_image_data2], axis = -1)
+          
 
         # augmentation
         if self.augment == True:
@@ -235,11 +228,10 @@ class Dataset_2D(Dataset):
         if self.supervision == 'supervised':
             condition_image_data = torch.from_numpy(condition_image_data).unsqueeze(0).float()
         elif self.supervision == 'unsupervised':
-            if self.target == 'current':
-                condition_image_data = np.transpose(condition_image_data, (2,0,1))
-                condition_image_data = torch.from_numpy(condition_image_data).float()
-            elif self.target == 'mean':
-                condition_image_data = torch.from_numpy(condition_image_data).unsqueeze(0).float()
+      
+            condition_image_data = np.transpose(condition_image_data, (2,0,1))
+            condition_image_data = torch.from_numpy(condition_image_data).float()
+            
 
         # print('shape of x0 image data: ', x0_image_data.shape, ' and condition image data: ', condition_image_data.shape)
         return x0_image_data, condition_image_data

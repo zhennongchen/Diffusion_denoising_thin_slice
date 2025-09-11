@@ -10,7 +10,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'supervised_gaussian_current_beta0_distilled_EDM'
+trial_name = 'supervised_gaussian_beta0_distilled_EDM'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
@@ -23,8 +23,8 @@ beta = 0
 condition_channel = 1 if (supervision == 'supervised') or ('mean' in trial_name) else 2
 target = 'mean' if 'mean' in trial_name else 'current'
 
-pre_trained_model = None#os.path.join('/mnt/camca_NAS/denoising/models',trial_name, 'models', 'model-49.pt')
-start_step = 0
+pre_trained_model = os.path.join('/mnt/camca_NAS/denoising/models',trial_name, 'models', 'model-98.pt')
+start_step = 98
 image_size = [512,512]
 num_patches_per_slice = 2
 patch_size = [128,128]
@@ -79,7 +79,6 @@ diffusion_model = edm.EDM(
 # generator definition
 generator_train = Generator.Dataset_2D(
         supervision = supervision,
-        target = target,
 
         img_list = x0_list_train,
         condition_list = condition_list_train,
@@ -103,7 +102,6 @@ generator_train = Generator.Dataset_2D(
 
 generator_val = Generator.Dataset_2D(
         supervision = supervision,
-        target = target,
 
         img_list = x0_list_val,
         condition_list = condition_list_val,

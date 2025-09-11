@@ -835,7 +835,6 @@ class GaussianDiffusion(nn.Module):
         if self.objective == 'pred_noise': 
             pred_noise = model_output
             x_start = self.predict_start_from_noise(x, t, pred_noise)
-
             x_start = maybe_clip(x_start)
 
             if self.clip_or_not:
@@ -1120,9 +1119,7 @@ class Trainer(object):
         dl_val = DataLoader(self.ds_val, batch_size = train_batch_size, shuffle = False, pin_memory = True, num_workers = 0)# cpu_count())
         self.dl_val = self.accelerator.prepare(dl_val)
 
-        # target ("mean": mean of adjacent slices, "current": current slice itself)
-        self.target = self.ds.target
-        print('target: ', self.target)
+
 
         # optimizer
         self.opt = Adam(diffusion_model.parameters(), lr = train_lr, betas = adam_betas)
@@ -1216,14 +1213,13 @@ class Trainer(object):
 
                     with self.accelerator.autocast():
                         diffusion_loss,model_output, target = self.model(img = data_x0, condition = data_condition)
+                        # output the data range of model_output and data_x0
+                        print('model output range: ', torch.min(model_output).item(), torch.max(model_output).item())
+                        print('data_x0 range: ', torch.min(data_x0).item(), torch.max(data_x0).item())
                         # bias loss
                         gauss_kernel = kernel.get_gaussian_kernel(kernel_size=37, sigma=6)
                         lowpass_out = kernel.apply_lowpass_gaussian(model_output, gauss_kernel)
-                        if self.target == 'mean':
-                            lowpass_target = kernel.apply_lowpass_gaussian(torch.clone(data_condition), gauss_kernel)
-                        elif self.target == 'current':
-                            lowpass_target = kernel.apply_lowpass_gaussian(torch.clone(data_x0), gauss_kernel)
-
+                        lowpass_target = kernel.apply_lowpass_gaussian(torch.clone(data_x0), gauss_kernel)
                         bias_loss = F.mse_loss(lowpass_out, lowpass_target, reduction='mean')
 
                         loss = diffusion_loss + beta * bias_loss
@@ -1273,11 +1269,7 @@ class Trainer(object):
                                 # bias loss
                                 gauss_kernel = kernel.get_gaussian_kernel(kernel_size=37, sigma=6)
                                 lowpass_out = kernel.apply_lowpass_gaussian(model_output, gauss_kernel)
-                                if self.target == 'mean':
-                                    lowpass_target = kernel.apply_lowpass_gaussian(torch.clone(data_condition), gauss_kernel)
-                                elif self.target == 'current':
-                                    lowpass_target = kernel.apply_lowpass_gaussian(torch.clone(data_x0), gauss_kernel)
-
+                                lowpass_target = kernel.apply_lowpass_gaussian(torch.clone(data_x0), gauss_kernel)
                                 bias_loss = F.mse_loss(lowpass_out, lowpass_target, reduction='mean')
 
                                 loss = diffusion_loss + beta * bias_loss
