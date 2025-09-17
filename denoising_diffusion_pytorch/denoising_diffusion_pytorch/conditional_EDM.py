@@ -3,6 +3,7 @@ from random import random
 import torch
 from torch import nn, einsum
 import torch.nn.functional as F
+import lpips
 
 from tqdm import tqdm
 from einops import rearrange, repeat, reduce
@@ -12,7 +13,7 @@ from Diffusion_denoising_thin_slice.denoising_diffusion_pytorch.denoising_diffus
 
 import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Data_processing as Data_processing
-
+import Diffusion_denoising_thin_slice.denoising_diffusion_pytorch.denoising_diffusion_pytorch.edge_loss as edge_loss_fn
 # helpers
 
 def exists(val):
@@ -227,7 +228,7 @@ class EDM(nn.Module):  ### both 2D and 3D
     def noise_distribution(self, batch_size):
         return (self.P_mean + self.P_std * torch.randn((batch_size,), device = self.device)).exp()
 
-    def forward(self, images, condition = None):
+    def forward(self, images, condition = None, get_output = False):
         # assert image's min value is larger or equal to -1 and max value is smaller or equal to 1
         assert images.min() >= -1. and images.max() <= 1., 'image must be normalized to [-1, 1] range'
 
@@ -262,7 +263,10 @@ class EDM(nn.Module):  ### both 2D and 3D
 
         losses = losses * self.loss_weight(sigmas) 
 
-        return losses.mean()
+        if get_output:
+            return losses.mean(), denoised, images
+        else:
+            return losses.mean()
 
 
 
@@ -342,6 +346,11 @@ class Trainer(object):
         self.model, self.opt = self.accelerator.prepare(self.model, self.opt)
         self.validation_every = validation_every
 
+        ## lpips loss function
+        self.lpips_loss_fn = lpips.LPIPS(net='vgg').to(self.device)
+        ## edge loss function
+        self.edge_loss_fn = edge_loss_fn.edge_loss_fn
+
 
     @property
     def device(self):
@@ -381,7 +390,7 @@ class Trainer(object):
             self.accelerator.scaler.load_state_dict(data['scaler'])
 
 
-    def train(self, pre_trained_model = None ,start_step = None):
+    def train(self, pre_trained_model = None ,start_step = None, lpips_weight = 0, edge_weight = 0):
         accelerator = self.accelerator
         device = accelerator.device
 
@@ -395,7 +404,7 @@ class Trainer(object):
 
 
         self.scheduler.step_size = 1
-        val_loss = np.inf
+        val_loss = np.inf; val_diffusion_loss = np.inf; val_lpips_loss = np.inf; val_edge_loss = np.inf
         training_log = []
         with tqdm(initial = self.step, total = self.train_num_steps, disable = not accelerator.is_main_process) as pbar:
             
@@ -403,7 +412,7 @@ class Trainer(object):
                 print('training epoch: ', self.step + 1)
                 print('learning rate: ', self.scheduler.get_last_lr()[0])
 
-                average_loss = []
+                average_loss = []; average_diffusion_loss = []; average_lpips_loss = []; average_edge_loss = []
                 count = 0
                 # load data
                 for batch in self.dl:
@@ -415,7 +424,22 @@ class Trainer(object):
                     data_condition = batch_condition.to(device) if self.conditional_diffusion else None
 
                     with self.accelerator.autocast():
-                        loss = self.model(images = data_x0, condition = data_condition)
+                        # diffusion loss
+                        diffusion_loss, model_output, _ = self.model(images = data_x0, condition = data_condition, get_output = True)
+                       
+
+                        # calculate lpips loss
+                        # clip model_output to [-1,1]
+                        model_output_clip = torch.clamp(model_output, -1, 1)
+                        model_output_rgb = model_output_clip.repeat(1,3,1,1) if model_output_clip.shape[1] == 1 else model_output_clip
+                        data_x0_rgb = data_x0.repeat(1,3,1,1) if data_x0.shape[1] == 1 else data_x0
+                        lpips_loss = self.lpips_loss_fn(model_output_rgb, data_x0_rgb).mean()
+
+                        # edge loss
+                        edge_loss = self.edge_loss_fn(model_output, data_x0)
+
+                        # total loss
+                        loss = diffusion_loss + lpips_weight * lpips_loss + edge_weight * edge_loss
                     
                     if count % self.accum_iter == 0 or count == len(self.dl) - 1 or count == len(self.dl):
                         self.accelerator.backward(loss)
@@ -424,10 +448,17 @@ class Trainer(object):
                         self.opt.step()
 
                     average_loss.append(loss.item())
+                    average_diffusion_loss.append(diffusion_loss.item())
+                    average_lpips_loss.append(lpips_loss.item())
+                    average_edge_loss.append(edge_loss.item())
                     count += 1
 
                 average_loss = sum(average_loss) / len(average_loss)
-                pbar.set_description(f'average loss: {average_loss:.4f}')
+                average_diffusion_loss = sum(average_diffusion_loss) / len(average_diffusion_loss)
+                average_lpips_loss = sum(average_lpips_loss) / len(average_lpips_loss)
+                average_edge_loss = sum(average_edge_loss) / len(average_edge_loss)
+                
+                pbar.set_description(f'average loss: {average_loss:.3f}, diffusion loss: {average_diffusion_loss:.3f}, lpips loss: {average_lpips_loss:.3f}, edge loss: {average_edge_loss:.3f}')
  
                 accelerator.wait_for_everyone()
                
@@ -447,21 +478,39 @@ class Trainer(object):
                     print('validation at step: ', self.step)
                     self.model.eval()
                     with torch.no_grad():
-                        val_loss = []
+                        val_loss = []; val_diffusion_loss = []; val_lpips_loss = []; val_edge_loss = []
                         for batch in self.dl_val:
                             batch_x0, batch_condition = batch
                             data_x0 = batch_x0.to(device)
                             data_condition = batch_condition.to(device) if self.conditional_diffusion else None
                             with self.accelerator.autocast():
-                                loss = self.model(images = data_x0, condition = data_condition)
+                                # diffusion_loss
+                                diffusion_loss, denoised, _ = self.model(images = data_x0, condition = data_condition, get_output = True)
+                                # lpips loss
+                                denoised_clip = torch.clamp(denoised, -1, 1)
+                                denoised_rgb = denoised_clip.repeat(1,3,1,1) if denoised_clip.shape[1] == 1 else denoised_clip
+                                data_x0_rgb = data_x0.repeat(1,3,1,1) if data_x0.shape[1] == 1 else data_x0
+                                lpips_loss = self.lpips_loss_fn(denoised_rgb, data_x0_rgb).mean()
+                                # edge loss
+                                edge_loss = self.edge_loss_fn(denoised, data_x0)
+                                # total loss
+                                loss = diffusion_loss + lpips_weight * lpips_loss + edge_weight * edge_loss
+                            
                             val_loss.append(loss.item())
+                            val_diffusion_loss.append(diffusion_loss.item())
+                            val_lpips_loss.append(lpips_loss.item())
+                            val_edge_loss.append(edge_loss.item())
+                        
                         val_loss = sum(val_loss) / len(val_loss)
-                        print('validation loss: ', val_loss)
+                        val_diffusion_loss = sum(val_diffusion_loss) / len(val_diffusion_loss)
+                        val_lpips_loss = sum(val_lpips_loss) / len(val_lpips_loss)
+                        val_edge_loss = sum(val_edge_loss) / len(val_edge_loss)
+                        print('validation loss: ', val_loss, ' diffusion loss: ', val_diffusion_loss, ' lpips loss: ', val_lpips_loss, ' edge loss: ', val_edge_loss)
                     self.model.train(True)
 
                 # save the training log
-                training_log.append([self.step,average_loss, self.scheduler.get_last_lr()[0], val_loss])
-                df = pd.DataFrame(training_log,columns = ['iteration','learning_rate','training_loss','validation_loss'])
+                training_log.append([self.step,self.scheduler.get_last_lr()[0], average_loss, average_diffusion_loss, average_lpips_loss, average_edge_loss, val_loss, val_diffusion_loss, val_lpips_loss, val_edge_loss])
+                df = pd.DataFrame(training_log,columns = ['iteration','learning_rate', 'train_loss', 'train_diffusion_loss', 'train_lpips_loss', 'train_edge_loss', 'val_loss', 'val_diffusion_loss', 'val_lpips_loss', 'val_edge_loss'])
                 log_folder = os.path.join(os.path.dirname(self.results_folder),'log');ff.make_folder([log_folder])
                 df.to_excel(os.path.join(log_folder, 'training_log.xlsx'),index=False)
 

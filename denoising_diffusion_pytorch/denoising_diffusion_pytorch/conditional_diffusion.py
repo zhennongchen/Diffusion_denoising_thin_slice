@@ -1213,9 +1213,6 @@ class Trainer(object):
 
                     with self.accelerator.autocast():
                         diffusion_loss,model_output, target = self.model(img = data_x0, condition = data_condition)
-                        # output the data range of model_output and data_x0
-                        print('model output range: ', torch.min(model_output).item(), torch.max(model_output).item())
-                        print('data_x0 range: ', torch.min(data_x0).item(), torch.max(data_x0).item())
                         # bias loss
                         gauss_kernel = kernel.get_gaussian_kernel(kernel_size=37, sigma=6)
                         lowpass_out = kernel.apply_lowpass_gaussian(model_output, gauss_kernel)

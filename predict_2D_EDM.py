@@ -17,7 +17,7 @@ supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print
 
 epoch = 160
 trained_model_filename = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'models/model-' + str(epoch)+ '.pt')
-save_folder = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'pred_images'); os.makedirs(save_folder, exist_ok=True)
+save_folder = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'pred_images_100steps'); os.makedirs(save_folder, exist_ok=True)
 
 # bias 
 beta = 0
@@ -27,7 +27,7 @@ condition_channel = 1 if (supervision == 'supervised') or ('mean' in trial_name)
 
 image_size = [512,512]
 objective = 'pred_x0'
-sampling_timesteps = 50
+sampling_timesteps = 100
 
 histogram_equalization = True
 background_cutoff = -1000
