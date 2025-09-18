@@ -3,7 +3,7 @@ from random import random
 import torch
 from torch import nn, einsum
 import torch.nn.functional as F
-import lpips
+import lpips 
 
 from tqdm import tqdm
 from einops import rearrange, repeat, reduce
@@ -427,7 +427,6 @@ class Trainer(object):
                         # diffusion loss
                         diffusion_loss, model_output, _ = self.model(images = data_x0, condition = data_condition, get_output = True)
                        
-
                         # calculate lpips loss
                         # clip model_output to [-1,1]
                         model_output_clip = torch.clamp(model_output, -1, 1)

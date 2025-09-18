@@ -11,13 +11,13 @@ import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
 ###########
-trial_name = 'supervised_gaussian_beta0_distilled_EDM'
+trial_name = 'supervised_gaussian_beta0_distilled_EDM_Lpips0.2_Edge0.1'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
-epoch = 160
+epoch = 119
 trained_model_filename = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'models/model-' + str(epoch)+ '.pt')
-save_folder = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'pred_images_100steps'); os.makedirs(save_folder, exist_ok=True)
+save_folder = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'pred_images'); os.makedirs(save_folder, exist_ok=True)
 
 # bias 
 beta = 0
@@ -27,7 +27,7 @@ condition_channel = 1 if (supervision == 'supervised') or ('mean' in trial_name)
 
 image_size = [512,512]
 objective = 'pred_x0'
-sampling_timesteps = 100
+sampling_timesteps = 50
 
 histogram_equalization = True
 background_cutoff = -1000
@@ -61,7 +61,7 @@ model = ddpm.Unet(
 diffusion_model = edm.EDM(
     model,
     image_size = image_size,
-    num_sample_steps =50,
+    num_sample_steps = sampling_timesteps,
     clip_or_not = True,
     clip_range = clip_range,)
 
