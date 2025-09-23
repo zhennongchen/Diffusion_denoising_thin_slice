@@ -47,11 +47,11 @@ else:
     build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian_local.xlsx'))
 
 _,_,_,_, condition_list_train, x0_list_train = build_sheet.__build__(batch_list = [0,1,2,3]) 
-x0_list_train = x0_list_train[0:1]; condition_list_train = condition_list_train[0:1]
+# x0_list_train = x0_list_train[0:1]; condition_list_train = condition_list_train[0:1]
  
 # define val
 _,_,_,_, condition_list_val, x0_list_val = build_sheet.__build__(batch_list = [4])
-x0_list_val = x0_list_val[0:1]; condition_list_val = condition_list_val[0:1]
+# x0_list_val = x0_list_val[0:1]; condition_list_val = condition_list_val[0:1]
 
 print('train:', x0_list_train.shape, condition_list_train.shape, 'val:', x0_list_val.shape, condition_list_val.shape)
 print(x0_list_train[0:5], condition_list_train[0:5], x0_list_val[0:5], condition_list_val[0:5])

@@ -10,6 +10,7 @@ from functools import partial
 from collections import namedtuple
 from multiprocessing import cpu_count
 from skimage.measure import block_reduce
+import lpips 
 
 import torch
 from torch import nn, einsum
@@ -1121,7 +1122,6 @@ class Trainer(object):
         self.dl_val = self.accelerator.prepare(dl_val)
 
 
-
         # optimizer
         self.opt = Adam(diffusion_model.parameters(), lr = train_lr, betas = adam_betas)
         self.scheduler = StepLR(self.opt, step_size = 1, gamma=0.95)
@@ -1140,6 +1140,11 @@ class Trainer(object):
         # prepare model, dataloader, optimizer with accelerator
         self.model, self.opt = self.accelerator.prepare(self.model, self.opt)
         self.validation_every = validation_every
+
+        ## lpips loss function
+        self.lpips_loss_fn = lpips.LPIPS(net='vgg').to(self.device)
+        ## edge loss function
+        self.edge_loss_fn = edge_loss_fn.edge_loss_fn
 
     @property
     def device(self):
