@@ -9,13 +9,13 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'supervised_gaussian_beta0_distilled_Lpips0.1_Edge0.05'
+trial_name = 'supervised_gaussian_beta0_distilled_Lpips0.2_Edge0.05'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
 # bias  
 beta = 0
-lpips_weight = 0.1
+lpips_weight = 0.2
 edge_weight = 0.05
 
 # model condition 
