@@ -23,8 +23,8 @@ edge_weight = 0.05
 # else: condition on neighboring slices, target the current slice
 condition_channel = 1 if (supervision == 'supervised') or ('mean' in trial_name) else 2
 
-pre_trained_model = None#os.path.join('/mnt/camca_NAS/denoising/models','supervised_gaussian_beta0_distilled', 'models', 'model-95.pt')
-start_step = 0
+pre_trained_model = os.path.join('/mnt/camca_NAS/denoising/models',trial_name, 'models', 'model-180.pt')
+start_step = 180
 image_size = [512,512]
 num_patches_per_slice = 2
 patch_size = [128,128]
