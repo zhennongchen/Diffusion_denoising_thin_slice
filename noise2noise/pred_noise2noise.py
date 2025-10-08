@@ -10,7 +10,7 @@ import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.noise2noise.Generator as Generator
 
 #######################
-trial_name = 'noise2noise_2D'
+trial_name = 'noise2noise'
 epoch = 78
 trained_model_filename = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'models/model-' + str(epoch)+ '.pt')
 save_folder = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'pred_images'); os.makedirs(save_folder, exist_ok=True)
@@ -24,7 +24,7 @@ normalize_factor = 'equation'
 #######################
 build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian_NAS.xlsx'))
 _,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [5]) 
-n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 2)
+n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 1,end_number = 2, interval = 2)
 
 
 # build model
