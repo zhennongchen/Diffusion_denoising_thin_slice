@@ -38,7 +38,7 @@ maximum_cutoff = 2000
 normalize_factor = 'equation'
 clip_range = [-1,1]
 
-do_pred_or_avg = 'pred'
+do_pred_or_avg = 'avg'
 
 ###########
 build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian_NAS.xlsx'))
@@ -161,7 +161,7 @@ for i in range(n.shape[0]//2, n.shape[0]):
         for j in range(total_predicts):
             loaded_data[:,:,:,j] = nb.load(os.path.join(made_predicts[j],'pred_img.nii.gz')).get_fdata()
 
-        for avg_num in [20]:#[2,4,6,8,10,12,14,16,18,20]:#range(1,total_predicts+1):
+        for avg_num in [10,20]:#[2,4,6,8,10,12,14,16,18,20]:#range(1,total_predicts+1):
             print('avg_num:', avg_num)
             predicts_avg = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2], avg_num))
             print('predict_num:', avg_num)
