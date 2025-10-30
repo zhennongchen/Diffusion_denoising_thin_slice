@@ -17,7 +17,7 @@ set -o pipefail
 
 main_path="/mnt/d/Data/low_dose_CT/"
 # # define patient lists (the directory where you save all the patient data)
-PATIENTS=(${main_path}/dcm/*)
+PATIENTS=(${main_path}/dcm_quarter/*)
 
 echo ${#PATIENTS[@]}
 
@@ -33,7 +33,7 @@ do
  
   patient_id=$(basename ${p})
 
-  output_folder=${main_path}/nii_imgs
+  output_folder=${main_path}/nii_imgs_quarter
   mkdir -p ${output_folder}/${patient_id}/
   nii_folder=${output_folder}/${patient_id}/
 
