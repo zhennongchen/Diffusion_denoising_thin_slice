@@ -124,7 +124,7 @@ def get_additional_filter_to_rl(filename, nu, du, nview, ninterp=20):
 
     return ratio_fix
 
-def interleave_filter_and_recon(projector, prjs, custom_filter,angles):
+def interleave_filter_and_recon(projector, prjs, custom_filter,angles, get_recon = True):
     # interleave the filter
     projector = copy.deepcopy(projector)
     prjs = prjs.copy()
@@ -171,8 +171,9 @@ def interleave_filter_and_recon(projector, prjs, custom_filter,angles):
     fprj = fprj.real.astype(np.float32) * np.pi / len(custom_filter) / 2
     fprj = np.copy(fprj, 'C')
 
-    # reconstruction
-    recon = ct_para.pixel_driven_bp(projector, fprj, angles)
-
-    return recon
+    if get_recon == True:
+        recon = ct_para.pixel_driven_bp(projector, fprj, angles)
+        return recon
+    else:
+        return fprj, projector
 
