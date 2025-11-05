@@ -1,5 +1,5 @@
 import sys 
-sys.path.append('/workspace/Documents')
+sys.path.append('/host/d/Github')
 import os
 import torch
 import numpy as np 
@@ -9,29 +9,30 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'supervised_gaussian_beta0_distilled_Lpips0.2_Edge0.05'
+trial_name = 'unsupervised_gaussian'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
 # bias  
 beta = 0
-lpips_weight = 0.2
-edge_weight = 0.05
+lpips_weight = 0#0.2
+edge_weight = 0#0.05
 
 # model condition 
 # if 'mean' in trial_name: condition on current slice, target the mean of neighboring slices
 # else: condition on neighboring slices, target the current slice
-condition_channel = 1 if (supervision == 'supervised') or ('mean' in trial_name) else 2
+condition_channel = 1 #if (supervision == 'supervised') or ('mean' in trial_name) else 2
 
-pre_trained_model = os.path.join('/mnt/camca_NAS/denoising/models',trial_name, 'models', 'model-180.pt')
-start_step = 180
+pre_trained_model = None
+start_step = 0
 image_size = [512,512]
 num_patches_per_slice = 2
 patch_size = [128,128]
 
 objective = 'pred_x0'
 
-histogram_equalization = True
+histogram_equalization = False
+assert not histogram_equalization, "histogram equalization not needed for this experiment"
 background_cutoff = -1000
 maximum_cutoff = 2000
 normalize_factor = 'equation'
@@ -39,22 +40,19 @@ normalize_factor = 'equation'
 ###########################
 # define train
 if supervision == 'supervised':
-    build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_poisson_local.xlsx'))
-    if 'distilled' in trial_name:
-        print('distilled model')
-        build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_distilled_model_train_test_local.xlsx'))
-else:
-    build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian_local.xlsx'))
+    build_sheet =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_poisson_simulation_v1.xlsx'))
+elif supervision == 'unsupervised':
+    build_sheet =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v1.xlsx'))
 
-_,_,_,_, condition_list_train, x0_list_train = build_sheet.__build__(batch_list = [0,1,2,3]) 
-# x0_list_train = x0_list_train[0:1]; condition_list_train = condition_list_train[0:1]
- 
-# define val
-_,_,_,_, condition_list_val, x0_list_val = build_sheet.__build__(batch_list = [4])
-# x0_list_val = x0_list_val[0:1]; condition_list_val = condition_list_val[0:1]
+# define train patient list
+_, _, _, noise_file_odd_list_train, noise_file_even_list_train, gt_file_list_train, slice_num_list_train = build_sheet.__build__(batch_list = ['train']) 
 
-print('train:', x0_list_train.shape, condition_list_train.shape, 'val:', x0_list_val.shape, condition_list_val.shape)
-print(x0_list_train[0:5], condition_list_train[0:5], x0_list_val[0:5], condition_list_val[0:5])
+# define val patient list
+_, _, _,  noise_file_odd_list_val, noise_file_even_list_val,  gt_file_list_val, slice_num_list_val = build_sheet.__build__(batch_list = ['val'])
+
+print('number of training cases:', gt_file_list_train.shape[0], '; number of validation cases:', gt_file_list_val.shape[0])
+print('example train case:', gt_file_list_train[0], noise_file_odd_list_train[0], noise_file_even_list_train[0])
+print('example val case:', gt_file_list_val[0], noise_file_odd_list_val[0], noise_file_even_list_val[0])
 
 # define u-net and diffusion model
 model = ddpm.Unet(
@@ -80,6 +78,18 @@ diffusion_model = ddpm.GaussianDiffusion(
     auto_normalize = False,)
 
 # generator definition
+# first we define the x0 and condition list 
+if supervision == 'supervised':
+    x0_list_train = gt_file_list_train
+    condition_list_train = noise_file_odd_list_train
+    x0_list_val = gt_file_list_val
+    condition_list_val = noise_file_odd_list_val
+elif supervision == 'unsupervised':
+    x0_list_train = noise_file_even_list_train
+    condition_list_train = noise_file_odd_list_train
+    x0_list_val = noise_file_even_list_val
+    condition_list_val = noise_file_odd_list_val
+
 generator_train = Generator.Dataset_2D(
         supervision = supervision,
 
@@ -87,7 +97,7 @@ generator_train = Generator.Dataset_2D(
         condition_list = condition_list_train,
         image_size = image_size,
 
-        num_slices_per_image = 50,
+        num_slices_per_image = 50, # no matter how many slices, we only randomly pick 50 slices each time
         random_pick_slice = True,
         slice_range = None,
 
@@ -95,6 +105,8 @@ generator_train = Generator.Dataset_2D(
         patch_size = patch_size,
 
         histogram_equalization = histogram_equalization,
+        bins = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins.npy'),
+        bins_mapped = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped.npy'),
         background_cutoff = background_cutoff,
         maximum_cutoff = maximum_cutoff,
         normalize_factor = normalize_factor,
@@ -110,28 +122,32 @@ generator_val = Generator.Dataset_2D(
         condition_list = condition_list_val,
         image_size = image_size,
 
-        num_slices_per_image = 20,
+        num_slices_per_image = 150,
         random_pick_slice = False,
-        slice_range = [20,40], #[50,70],
+        slice_range = [0,150],
 
         num_patches_per_slice = 1,
         patch_size = [512,512],
 
         histogram_equalization = histogram_equalization,
+        bins = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins.npy'),
+        bins_mapped = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped.npy'),
         background_cutoff = background_cutoff,
         maximum_cutoff = maximum_cutoff,
         normalize_factor = normalize_factor,)
 
 # start to train
+# define a saved model folder
+save_models_folder = os.path.join('/host/d/projects/denoising/models', trial_name, 'models');ff.make_folder([os.path.dirname(save_models_folder), save_models_folder])
 trainer = ddpm.Trainer(
     diffusion_model= diffusion_model,
     generator_train = generator_train,
     generator_val = generator_val,
-    train_batch_size = 25,
+    train_batch_size = 20,
     
     accum_iter = 1,
-    train_num_steps = 20000, # total training epochs
-    results_folder = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'models'),
+    train_num_steps = 400, # total training epochs
+    results_folder = save_models_folder,
    
     train_lr = 1e-4,
     train_lr_decay_every = 200, 

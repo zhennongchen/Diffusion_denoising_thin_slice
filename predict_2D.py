@@ -1,5 +1,5 @@
 import sys
-sys.path.append('/workspace/Documents')
+sys.path.append('/host/d/Github')
 import os
 import torch
 import numpy as np 
@@ -11,42 +11,40 @@ import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
 ###########
-trial_name = 'unsupervised_gaussian_beta0'
+trial_name = 'unsupervised_gaussian'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
-epoch = 61
-trained_model_filename = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'models/model-' + str(epoch)+ '.pt')
-save_folder = os.path.join('/mnt/camca_NAS/denoising/models', trial_name, 'pred_images'); os.makedirs(save_folder, exist_ok=True)
+study_folder = '/host/d/projects/denoising/models'
+epoch = 100
+trained_model_filename = os.path.join(study_folder,trial_name, 'models/model-' + str(epoch)+ '.pt')
+save_folder = os.path.join(study_folder, trial_name, 'pred_images'); os.makedirs(save_folder, exist_ok=True)
 
 # bias 
 beta = 0
 
 # model condition 
-# if 'mean' in trial_name: condition on current slice, target the mean of neighboring slices
-# else: condition on neighboring slices, target the current slice
-condition_channel = 1 if (supervision == 'supervised') or ('mean' in trial_name) else 2
-# target = 'mean' if 'mean' in trial_name else 'current'
+condition_channel = 1
 
 image_size = [512,512] 
 objective = 'pred_x0'
 sampling_timesteps = 100
 
-histogram_equalization = True
+histogram_equalization = False
+assert not histogram_equalization, "histogram equalization not needed for this experiment"
 background_cutoff = -1000
 maximum_cutoff = 2000
 normalize_factor = 'equation'
 clip_range = [-1,1]
 
-do_pred_or_avg = 'avg'
+do_pred_or_avg = 'pred'
 
 ###########
-build_sheet =  Build_list.Build(os.path.join('/mnt/camca_NAS/denoising/Patient_lists/fixedCT_static_simulation_train_test_gaussian_NAS.xlsx'))
-_,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [5]) 
+build_sheet =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v1.xlsx'))
+batch_list, patient_id_list, random_num_list, noise_file_odd_list, noise_file_even_list, ground_truth_file_list, slice_num_list = build_sheet.__build__(batch_list = ['test'])
 print('total cases:', patient_id_list.shape[0])
-n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 1,end_number = 2, interval = 2)
+n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 2)
 print('total number:', n.shape[0])
-# x0_list = x0_list[0:1]; condition_list = condition_list[0:1]
 
 model = ddpm.Unet(
     problem_dimension = problem_dimension,
@@ -73,32 +71,31 @@ diffusion_model = ddpm.GaussianDiffusion(
     clip_or_not = True, 
     clip_range = clip_range, )
 
-for i in range(n.shape[0]//2, n.shape[0]):
+for i in range(0, n.shape[0]):
     patient_id = patient_id_list[n[i]]
-    patient_subid = patient_subid_list[n[i]]
     random_num = random_num_list[n[i]]
-    x0_file = x0_list[n[i]]
-    condition_file = condition_list[n[i]]
+    noise_file_odd = noise_file_odd_list[n[i]]
+    noise_file_even = noise_file_even_list[n[i]]
+    gt_file = ground_truth_file_list[n[i]]
 
-    print(i,patient_id, patient_subid, random_num)
+    # here we only use noise odd as condition
+    condition_file = noise_file_odd
 
-    # get the ground truth image
-    gt_img = nb.load(x0_file)
-    print('x0_file:', x0_file, 'shape:', gt_img.get_fdata().shape)
-    affine = gt_img.affine; gt_img = gt_img.get_fdata()[:,:,30:80]
+    print(i,patient_id, random_num)
 
-    # get the condition image
-    print('condition_file:', condition_file, 'shape: ', nb.load(condition_file).get_fdata().shape)
-    condition_img = nb.load(condition_file).get_fdata()[:,:,30:80]
+    # get the condition image (noise odd)
+    affine = nb.load(condition_file).affine
+    condition_img = nb.load(noise_file_odd).get_fdata()
+    slice_num = condition_img.shape[2]
+    print('slice num:', slice_num)
 
     if do_pred_or_avg == 'pred':
         for iteration in range(1,21):
             print('iteration:', iteration)
 
             # make folders
-            ff.make_folder([os.path.join(save_folder, patient_id), os.path.join(save_folder, patient_id, patient_subid), os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num))])
-            save_folder_case = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'_'+str(iteration)); os.makedirs(save_folder_case, exist_ok=True)
-
+            save_folder_case = os.path.join(save_folder, patient_id, 'random_' + str(random_num), 'epoch' + str(epoch)+'_' + str(iteration))
+            ff.make_folder([os.path.join(save_folder, patient_id), os.path.join(save_folder, patient_id, 'random_' + str(random_num)), save_folder_case])
 
             if os.path.isfile(os.path.join(save_folder_case, 'pred_img.nii.gz')):
                 print('already done')
@@ -108,15 +105,17 @@ for i in range(n.shape[0]//2, n.shape[0]):
             generator = Generator.Dataset_2D(
                 supervision = supervision,
 
-                img_list = np.array([x0_file]),
+                img_list = np.array([condition_file]), # this is a dummy, we do not use it
                 condition_list = np.array([condition_file]),
                 image_size = image_size,
 
-                num_slices_per_image = 50, 
+                num_slices_per_image = slice_num, 
                 random_pick_slice = False,
-                slice_range = [30,80],
+                slice_range = None,
 
                 histogram_equalization = histogram_equalization,
+                bins = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins.npy'),
+                bins_mapped = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped.npy'),
                 background_cutoff = background_cutoff,
                 maximum_cutoff = maximum_cutoff,
                 normalize_factor = normalize_factor,)
@@ -124,17 +123,13 @@ for i in range(n.shape[0]//2, n.shape[0]):
             # sample:
             sampler = ddpm.Sampler(diffusion_model,generator,batch_size = 1)
 
-            pred_img = sampler.sample_2D(trained_model_filename, gt_img)
+            pred_img = sampler.sample_2D(trained_model_filename, condition_img)
             print(pred_img.shape)
 
             pred_img_final = pred_img
     
             # save
             nb.save(nb.Nifti1Image(pred_img_final, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
-
-            if iteration == 1:
-                nb.save(nb.Nifti1Image(gt_img, affine), os.path.join(save_folder_case, 'gt_img.nii.gz'))
-                nb.save(nb.Nifti1Image(condition_img, affine), os.path.join(save_folder_case, 'condition_img.nii.gz'))
        
 
     if do_pred_or_avg == 'avg':

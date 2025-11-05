@@ -12,9 +12,7 @@ from torch.utils.data import Dataset
 import Diffusion_denoising_thin_slice.Data_processing as Data_processing
 import Diffusion_denoising_thin_slice.functions_collection as ff
 
-# histogram equalization pre-saved load
-bins = np.load('/mnt/camca_NAS/denoising/Data/histogram_equalization/bins.npy')
-bins_mapped = np.load('/mnt/camca_NAS/denoising/Data/histogram_equalization/bins_mapped.npy')
+
 
 # random function
 def random_rotate(i, z_rotate_degree = None, z_rotate_range = [-10,10], fill_val = None, order = 1):
@@ -59,6 +57,9 @@ class Dataset_2D(Dataset):
         supervision, # supervised or unsupervised
 
         histogram_equalization,
+        bins,
+        bins_mapped,
+
         background_cutoff, 
         maximum_cutoff,
         normalize_factor,
@@ -83,6 +84,8 @@ class Dataset_2D(Dataset):
         self.supervision = supervision
 
         self.histogram_equalization = histogram_equalization
+        self.bins = bins
+        self.bins_mapped = bins_mapped
         self.background_cutoff = background_cutoff
         self.maximum_cutoff = maximum_cutoff
         self.normalize_factor = normalize_factor
@@ -132,7 +135,7 @@ class Dataset_2D(Dataset):
     
         # do histogram equalization first
         if self.histogram_equalization == True: 
-            ii = Data_processing.apply_transfer_to_img(ii, bins, bins_mapped)
+            ii = Data_processing.apply_transfer_to_img(ii, self.bins,sefl.bins_mapped)
         # cutoff and normalization
         ii = Data_processing.cutoff_intensity(ii,cutoff_low = self.background_cutoff, cutoff_high = self.maximum_cutoff)
         ii = Data_processing.normalize_image(ii, normalize_factor = self.normalize_factor, image_max = self.maximum_cutoff, image_min = self.background_cutoff ,invert = False)
@@ -152,29 +155,23 @@ class Dataset_2D(Dataset):
         condition_file = self.condition_list[f]
         # print('condition file is: ', condition_file, ' while current condition file is: ', self.current_condition_file)
 
-        if self.supervision == 'supervised': # in unsupervised case, we do not need to load the x0 file since we don't have clean image
-            # print('we have x0 since we have clean image')
-            if x0_filename != self.current_x0_file:
-                x0_img = self.load_file(x0_filename)
-                # print('load: ',x0_filename)
-                self.current_x0_file = x0_filename
-                self.current_x0_data = np.copy(x0_img)
+        if x0_filename != self.current_x0_file:
+            x0_img = self.load_file(x0_filename)
+            self.current_x0_file = x0_filename
+            self.current_x0_data = np.copy(x0_img)
 
         if condition_file != self.current_condition_file:
-            # print('it is a new case, load the file')
+            # print('it is a new sample')
             condition_img = self.load_file(condition_file)
             self.current_condition_file = condition_file
             self.current_condition_data = np.copy(condition_img)
 
-            if self.supervision == 'unsupervised':
-                self.current_x0_data = np.copy(self.current_condition_data)
-
-            # define a list of random slice numbers
+            # define a list of random slice numbers for this new sample
             if self.slice_range == None:
-                total_slice_range = [0,self.current_condition_data.shape[2]] if self.supervision == 'supervised' else [0 + 1,self.current_condition_data.shape[2]-1]
+                total_slice_range = [0,self.current_condition_data.shape[2]] 
             else:
                 total_slice_range = self.slice_range
-            # print('in this condition case, total slice range is: ', total_slice_range)
+      
             if self.random_pick_slice == False:
                 self.slice_index_list = np.arange(total_slice_range[0], total_slice_range[1])
                 self.slice_index_list = self.slice_index_list[:self.num_slices_per_image]
@@ -194,26 +191,15 @@ class Dataset_2D(Dataset):
 
         # target image
         x0_image_data = np.copy(self.current_x0_data)[:,:,s] 
-        # if self.target == 'mean':
-        #     x0_image_data = (self.current_x0_data[:,:,s-1] + self.current_x0_data[:,:,s+1]) / 2
         # crop the patch
         if self.num_patches_per_slice != None:
             x0_image_data = x0_image_data[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
         
         # condition image
-        if self.supervision == 'supervised':
-            condition_image_data = np.copy(self.current_condition_data)[:,:,s]
-            if self.num_patches_per_slice != None:
-                condition_image_data = condition_image_data[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
-        elif self.supervision == 'unsupervised':
-            condition_image_data1 = np.copy(self.current_condition_data)[:,:,s-1]
-            condition_image_data2 = np.copy(self.current_condition_data)[:,:,s+1]
-            if self.num_patches_per_slice != None:
-                condition_image_data1 = condition_image_data1[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
-                condition_image_data2 = condition_image_data2[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
-            condition_image_data = np.stack([condition_image_data1, condition_image_data2], axis = -1)
+        condition_image_data = np.copy(self.current_condition_data)[:,:,s]
+        if self.num_patches_per_slice != None:
+            condition_image_data = condition_image_data[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
           
-
         # augmentation
         if self.augment == True:
             if random.uniform(0,1) < self.augment_frequency:
@@ -225,14 +211,8 @@ class Dataset_2D(Dataset):
         
             
         x0_image_data = torch.from_numpy(x0_image_data).unsqueeze(0).float()
-        if self.supervision == 'supervised':
-            condition_image_data = torch.from_numpy(condition_image_data).unsqueeze(0).float()
-        elif self.supervision == 'unsupervised':
-      
-            condition_image_data = np.transpose(condition_image_data, (2,0,1))
-            condition_image_data = torch.from_numpy(condition_image_data).float()
+        condition_image_data = torch.from_numpy(condition_image_data).unsqueeze(0).float()
             
-
         # print('shape of x0 image data: ', x0_image_data.shape, ' and condition image data: ', condition_image_data.shape)
         return x0_image_data, condition_image_data
     
