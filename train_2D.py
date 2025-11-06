@@ -9,7 +9,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'unsupervised_gaussian'
+trial_name = 'supervised_poisson'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
@@ -19,11 +19,10 @@ lpips_weight = 0#0.2
 edge_weight = 0#0.05
 
 # model condition 
-# if 'mean' in trial_name: condition on current slice, target the mean of neighboring slices
-# else: condition on neighboring slices, target the current slice
-condition_channel = 1 #if (supervision == 'supervised') or ('mean' in trial_name) else 2
+condition_channel = 1 
+train_batch_size = 5 if supervision == 'supervised' else 10
 
-pre_trained_model = None
+pre_trained_model = None #os.path.join('/host/d/projects/denoising/models', 'unsupervised_gaussian', 'models/model-30.pt') #None
 start_step = 0
 image_size = [512,512]
 num_patches_per_slice = 2
@@ -143,7 +142,7 @@ trainer = ddpm.Trainer(
     diffusion_model= diffusion_model,
     generator_train = generator_train,
     generator_val = generator_val,
-    train_batch_size = 20,
+    train_batch_size = train_batch_size,
     
     accum_iter = 1,
     train_num_steps = 400, # total training epochs
