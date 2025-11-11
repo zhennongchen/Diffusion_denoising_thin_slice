@@ -6,6 +6,7 @@ import math
 import SimpleITK as sitk
 import cv2
 import random
+import nibabel as nb
 import Diffusion_denoising_thin_slice.Data_processing as dp
 from skimage.metrics import structural_similarity as compare_ssim
 # import CTProjector.src.ct_projector.projector.numpy as ct_projector
@@ -125,9 +126,6 @@ def make_folder(folder_list):
         os.makedirs(i,exist_ok = True)
 
 
-
-
-
 # function: save grayscale image
 def save_grayscale_image(a,save_path,normalize = True, WL = 50, WW = 100):
     I = np.zeros((a.shape[0],a.shape[1],3))
@@ -227,57 +225,6 @@ def round_diff(pred, gt, threshold):
     rounded_A = np.where((np.abs(A) % 1 <= threshold) & (A < 0), np.ceil(A), np.where((np.abs(A) % 1 <= threshold) & (A > 0), np.floor(A), A))
     return gt + rounded_A
 
-# # function: read real-scan projection data
-# def read_projection_data(
-#     input_dir, projector: ct_projector.ct_projector, start_view, end_view, nrot_per_slab, nz_per_slice
-# ):
-#     min_file_bytes = 1024 * 10  # file size should be at least 10MB
-
-#     if end_view < 0:
-#         end_view = len(find_all_target_files(['slab_*.nii.gz'], input_dir)) -1 
-       
-#     filenames = []
-#     for iview in range(start_view, end_view + 1):
-#         filename = os.path.join(input_dir, f'slab_{iview}.nii.gz')
-#         if not os.path.exists(filename):
-#             break
-#         if os.path.getsize(filename) < min_file_bytes:
-#             break
-#         filenames.append(filename)
-
-#     prjs = []
-#     print('Reading data from {0} files'.format(len(filenames)), flush=True)
-#     for i, filename in enumerate(filenames):
-#         print(i, end=',', flush=True)
-#         prj = sitk.GetArrayFromImage(sitk.ReadImage(filename))
-#         prj = prj.astype(np.float32)
-#         # print('shape: ', prj.shape)
-#         prjs.append(prj)
-#     prjs = np.array(prjs)
-
-#     prjs = prjs.reshape([
-#         nrot_per_slab,
-#         prjs.shape[0] // nrot_per_slab,
-#         prjs.shape[1],
-#         prjs.shape[2] // nz_per_slice,
-#         nz_per_slice,
-#         prjs.shape[3],
-#     ])
-
-#     print('prjs shape ',prjs.shape)
-
-#     prjs = np.mean(prjs, axis=(0, 4))
-
-#     print('prjs shape ',prjs.shape)
-
-#     # update projector
-#     projector.nv = prjs.shape[2]
-#     projector.nz = prjs.shape[2]
-#     projector.dv = projector.dv * nz_per_slice
-#     projector.dz = projector.dv
-
-#     return prjs, projector
-
 # function: hanning filter
 def hann_filter(x, projector):
     x_prime = np.fft.fft(x)
@@ -330,4 +277,12 @@ def sample_patch_origins(patch_origins, N, include_original_list = None):
 
     return pixels
 
-    
+
+# function: preload data
+def preload_data(file_list):
+    loaded_image = []
+    for nn in range(0, len(file_list)):
+        
+        img = nb.load(file_list[nn]).get_fdata()
+        loaded_image.append(img)
+    return loaded_image

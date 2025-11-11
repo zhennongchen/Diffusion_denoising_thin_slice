@@ -3,6 +3,7 @@ sys.path.append('/host/d/Github')
 import os
 import torch
 import numpy as np 
+import nibabel as nb
 import Diffusion_denoising_thin_slice.denoising_diffusion_pytorch.denoising_diffusion_pytorch.conditional_diffusion as ddpm
 import Diffusion_denoising_thin_slice.denoising_diffusion_pytorch.denoising_diffusion_pytorch.conditional_EDM as edm
 import Diffusion_denoising_thin_slice.functions_collection as ff
@@ -13,6 +14,8 @@ trial_name = 'unsupervised_gaussian_adjacent'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
+preload = True
+
 # bias  
 beta = 0
 lpips_weight = 0#0.2
@@ -22,13 +25,14 @@ edge_weight = 0#0.05
 condition_channel = 1 if 'adjacent' not in trial_name else 2
 train_batch_size = 5 if supervision == 'supervised' else 10
 
-pre_trained_model = None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-45.pt') #None
-start_step = 0
+pre_trained_model = os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-11.pt') #None
+start_step = 11
 image_size = [512,512]
 num_patches_per_slice = 2
 patch_size = [128,128]
 
 objective = 'pred_x0' if 'noise' not in trial_name else 'pred_noise'
+print('objective is: ', objective)
 
 histogram_equalization = False
 assert not histogram_equalization, "histogram equalization not needed for this experiment"
@@ -36,7 +40,7 @@ background_cutoff = -1000
 maximum_cutoff = 2000
 normalize_factor = 'equation'
 
-###########################
+######Patient list
 # define train
 if supervision == 'supervised':
     build_sheet =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_poisson_simulation_v1.xlsx'))
@@ -53,7 +57,7 @@ print('number of training cases:', gt_file_list_train.shape[0], '; number of val
 print('example train case:', gt_file_list_train[0], noise_file_odd_list_train[0], noise_file_even_list_train[0])
 print('example val case:', gt_file_list_val[0], noise_file_odd_list_val[0], noise_file_even_list_val[0])
 
-# define u-net and diffusion model
+######Define models
 model = ddpm.Unet(
     problem_dimension = problem_dimension,
     init_dim = 64,
@@ -76,28 +80,34 @@ diffusion_model = ddpm.GaussianDiffusion(
     clip_or_not =False,
     auto_normalize = False,)
 
-# generator definition
+######Define data generator
 # first we define the x0 and condition list 
 if supervision == 'supervised':
-    x0_list_train = gt_file_list_train
-    condition_list_train = noise_file_odd_list_train
-    x0_list_val = gt_file_list_val
-    condition_list_val = noise_file_odd_list_val
+    x0_list_train,condition_list_train = gt_file_list_train,noise_file_odd_list_train
+    x0_list_val, condition_list_val = gt_file_list_val, noise_file_odd_list_val
 elif supervision == 'unsupervised':
-    x0_list_train = noise_file_even_list_train
-    condition_list_train = noise_file_odd_list_train
-    x0_list_val = noise_file_even_list_val
-    condition_list_val = noise_file_odd_list_val
+    x0_list_train, condition_list_train = noise_file_even_list_train, noise_file_odd_list_train
+    x0_list_val, condition_list_val = noise_file_even_list_val, noise_file_odd_list_val
+    
+# preload_data if needed
+if preload  == True:
+    x0_data_train, condition_data_train = ff.preload_data(x0_list_train), ff.preload_data(condition_list_train)
+    x0_data_val, condition_data_val = ff.preload_data(x0_list_val), ff.preload_data(condition_list_val)
+    # print('preloaded train x0 list length:', len(x0_data_train), '; preloaded condition list length:', len(condition_data_train))
+    # print('the first preloaded train x0 data shape:', x0_data_train[0].shape, '; the first preloaded condition data shape:', condition_data_train[0].shape)
+    # print('preloaded val x0 list length:', len(x0_data_val), '; preloaded condition list length:', len(condition_data_val))
+    # print('the first preloaded val x0 data shape:', x0_data_val[0].shape, '; the first preloaded condition data shape:', condition_data_val[0].shape)
 
+# data generator
 # if 'adjacent' in trial_name, we use Generator.Dataset_2D_adjacent_slices, else use Generator.Dataset_2D
 # can you define generator first?
-if 'adjacent' in trial_name:
-    G = Generator.Dataset_2D_adjacent_slices 
-else:
-    G = Generator.Dataset_2D
+G = Generator.Dataset_2D_adjacent_slices  if 'adjacent' in trial_name else Generator.Dataset_2D
 
 generator_train = G(
         supervision = supervision,
+
+        preload = preload,
+        preload_data = (x0_data_train, condition_data_train) if preload == True else None,
 
         img_list = x0_list_train,
         condition_list = condition_list_train,
@@ -124,6 +134,9 @@ generator_train = G(
 generator_val = G(
         supervision = supervision,
 
+        preload = preload,
+        preload_data = (x0_data_val, condition_data_val) if preload == True else None,
+
         img_list = x0_list_val,
         condition_list = condition_list_val,
         image_size = image_size,
@@ -142,7 +155,7 @@ generator_val = G(
         maximum_cutoff = maximum_cutoff,
         normalize_factor = normalize_factor,)
 
-# start to train
+#######Start to train
 # define a saved model folder
 save_models_folder = os.path.join('/host/d/projects/denoising/models', trial_name, 'models');ff.make_folder([os.path.dirname(save_models_folder), save_models_folder])
 trainer = ddpm.Trainer(

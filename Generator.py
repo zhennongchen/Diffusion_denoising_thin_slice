@@ -70,6 +70,9 @@ class Dataset_2D(Dataset):
         shuffle = False,
         augment = False,
         augment_frequency = 0,
+
+        preload = False,
+        preload_data = None,
     ):
         super().__init__()
         self.img_list = img_list
@@ -82,6 +85,10 @@ class Dataset_2D(Dataset):
         self.patch_size = patch_size
 
         self.supervision = supervision
+        self.preload = preload
+        self.preload_img_data = preload_data[0] if self.preload == True else None
+        self.preload_condition_data = preload_data[1] if self.preload == True else None
+
 
         self.histogram_equalization = histogram_equalization
         self.bins = bins
@@ -130,16 +137,20 @@ class Dataset_2D(Dataset):
             return self.num_files * self.num_slices_per_image
     
 
-    def load_file(self, filename):
-        ii = nb.load(filename).get_fdata()
+    def load_file(self, filename = None, preload_data = None):
+        if self.preload == False:
+            ii = nb.load(filename).get_fdata()
+        else:
+            ii = preload_data
     
         # do histogram equalization first
         if self.histogram_equalization == True: 
-            ii = Data_processing.apply_transfer_to_img(ii, self.bins,sefl.bins_mapped)
+            ii = Data_processing.apply_transfer_to_img(ii, self.bins, self.bins_mapped)
         # cutoff and normalization
         ii = Data_processing.cutoff_intensity(ii,cutoff_low = self.background_cutoff, cutoff_high = self.maximum_cutoff)
         ii = Data_processing.normalize_image(ii, normalize_factor = self.normalize_factor, image_max = self.maximum_cutoff, image_min = self.background_cutoff ,invert = False)
-        ii = Data_processing.crop_or_pad(ii, [self.image_size[0], self.image_size[1], ii.shape[2]], value= np.min(ii))
+        if self.preload == False:
+            ii = Data_processing.crop_or_pad(ii, [self.image_size[0], self.image_size[1], ii.shape[2]], value= np.min(ii))
 
         return ii
         
@@ -156,13 +167,18 @@ class Dataset_2D(Dataset):
         # print('condition file is: ', condition_file, ' while current condition file is: ', self.current_condition_file)
 
         if x0_filename != self.current_x0_file:
-            x0_img = self.load_file(x0_filename)
+            if self.preload == False:
+                x0_img = self.load_file(filename = x0_filename)
+            else:
+                x0_img = self.load_file(preload_data = self.preload_img_data[f])
             self.current_x0_file = x0_filename
             self.current_x0_data = np.copy(x0_img)
 
         if condition_file != self.current_condition_file:
-            # print('it is a new sample')
-            condition_img = self.load_file(condition_file)
+            if self.preload == False:
+                condition_img = self.load_file(filename = condition_file)
+            else:
+                condition_img = self.load_file(preload_data = self.preload_condition_data[f])
             self.current_condition_file = condition_file
             self.current_condition_data = np.copy(condition_img)
 
@@ -213,7 +229,7 @@ class Dataset_2D(Dataset):
         x0_image_data = torch.from_numpy(x0_image_data).unsqueeze(0).float()
         condition_image_data = torch.from_numpy(condition_image_data).unsqueeze(0).float()
             
-        print('shape of x0 image data: ', x0_image_data.shape, ' and condition image data: ', condition_image_data.shape)
+        # print('shape of x0 image data: ', x0_image_data.shape, ' and condition image data: ', condition_image_data.shape)
         return x0_image_data, condition_image_data
     
     def on_epoch_end(self):
@@ -225,6 +241,7 @@ class Dataset_2D(Dataset):
 class Dataset_2D_adjacent_slices(Dataset):
     def __init__(
         self,
+
         img_list,
         condition_list,
         image_size,
@@ -249,6 +266,9 @@ class Dataset_2D_adjacent_slices(Dataset):
         shuffle = False,
         augment = False,
         augment_frequency = 0,
+
+        preload = False,
+        preload_data = None,
     ):
         super().__init__()
         self.img_list = img_list
@@ -261,8 +281,13 @@ class Dataset_2D_adjacent_slices(Dataset):
         self.patch_size = patch_size
 
         self.supervision = supervision
+        self.preload = preload
+        self.preload_img_data = preload_data[0] if self.preload == True else None
+        self.preload_condition_data = preload_data[1] if self.preload == True else None
 
         self.histogram_equalization = histogram_equalization
+        self.bins = bins
+        self.bins_mapped = bins_mapped
         self.background_cutoff = background_cutoff
         self.maximum_cutoff = maximum_cutoff
         self.normalize_factor = normalize_factor
@@ -307,12 +332,15 @@ class Dataset_2D_adjacent_slices(Dataset):
             return self.num_files * self.num_slices_per_image
     
 
-    def load_file(self, filename):
-        ii = nb.load(filename).get_fdata()
+    def load_file(self, filename = None, preload_data = None):
+        if self.preload == False:
+            ii = nb.load(filename).get_fdata()
+        else:
+            ii = preload_data
     
         # do histogram equalization first
         if self.histogram_equalization == True: 
-            ii = Data_processing.apply_transfer_to_img(ii, bins, bins_mapped)
+            ii = Data_processing.apply_transfer_to_img(ii, self.bins, self.bins_mapped)
         # cutoff and normalization
         ii = Data_processing.cutoff_intensity(ii,cutoff_low = self.background_cutoff, cutoff_high = self.maximum_cutoff)
         ii = Data_processing.normalize_image(ii, normalize_factor = self.normalize_factor, image_max = self.maximum_cutoff, image_min = self.background_cutoff ,invert = False)
@@ -333,16 +361,21 @@ class Dataset_2D_adjacent_slices(Dataset):
         # print('condition file is: ', condition_file, ' while current condition file is: ', self.current_condition_file)
 
         if self.supervision == 'supervised': # in unsupervised case, we do not need to load the x0 file since we don't have clean image
-            # print('we have x0 since we have clean image')
             if x0_filename != self.current_x0_file:
-                x0_img = self.load_file(x0_filename)
+                if self.preload == False:
+                    x0_img = self.load_file(filename = x0_filename)
+                else:
+                    x0_img = self.load_file(preload_data = self.preload_img_data[f])
                 # print('load: ',x0_filename)
                 self.current_x0_file = x0_filename
                 self.current_x0_data = np.copy(x0_img)
 
         if condition_file != self.current_condition_file:
-            # print('it is a new case, load the file name: ', condition_file)
-            condition_img = self.load_file(condition_file)
+            if self.preload == False:
+                condition_img = self.load_file(filename = condition_file)
+            else:
+                condition_img = self.load_file(preload_data = self.preload_condition_data[f])
+           
             self.current_condition_file = condition_file
             self.current_condition_data = np.copy(condition_img)
 
