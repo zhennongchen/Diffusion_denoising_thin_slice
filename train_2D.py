@@ -9,7 +9,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'supervised_poisson'
+trial_name = 'unsupervised_gaussian_adjacent'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
@@ -19,16 +19,16 @@ lpips_weight = 0#0.2
 edge_weight = 0#0.05
 
 # model condition 
-condition_channel = 1 
+condition_channel = 1 if 'adjacent' not in trial_name else 2
 train_batch_size = 5 if supervision == 'supervised' else 10
 
-pre_trained_model = None #os.path.join('/host/d/projects/denoising/models', 'unsupervised_gaussian', 'models/model-30.pt') #None
+pre_trained_model = None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-45.pt') #None
 start_step = 0
 image_size = [512,512]
 num_patches_per_slice = 2
 patch_size = [128,128]
 
-objective = 'pred_x0'
+objective = 'pred_x0' if 'noise' not in trial_name else 'pred_noise'
 
 histogram_equalization = False
 assert not histogram_equalization, "histogram equalization not needed for this experiment"
@@ -89,7 +89,14 @@ elif supervision == 'unsupervised':
     x0_list_val = noise_file_even_list_val
     condition_list_val = noise_file_odd_list_val
 
-generator_train = Generator.Dataset_2D(
+# if 'adjacent' in trial_name, we use Generator.Dataset_2D_adjacent_slices, else use Generator.Dataset_2D
+# can you define generator first?
+if 'adjacent' in trial_name:
+    G = Generator.Dataset_2D_adjacent_slices 
+else:
+    G = Generator.Dataset_2D
+
+generator_train = G(
         supervision = supervision,
 
         img_list = x0_list_train,
@@ -114,7 +121,7 @@ generator_train = Generator.Dataset_2D(
         augment = True,
         augment_frequency = 0.5,)
 
-generator_val = Generator.Dataset_2D(
+generator_val = G(
         supervision = supervision,
 
         img_list = x0_list_val,
@@ -123,7 +130,7 @@ generator_val = Generator.Dataset_2D(
 
         num_slices_per_image = 150,
         random_pick_slice = False,
-        slice_range = [0,150],
+        slice_range = [10,160],
 
         num_patches_per_slice = 1,
         patch_size = [512,512],
