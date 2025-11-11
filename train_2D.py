@@ -10,7 +10,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'unsupervised_gaussian_adjacent'
+trial_name = 'unsupervised_gaussian_adjacent_hist'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
@@ -25,8 +25,8 @@ edge_weight = 0#0.05
 condition_channel = 1 if 'adjacent' not in trial_name else 2
 train_batch_size = 5 if supervision == 'supervised' else 10
 
-pre_trained_model = os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-11.pt') #None
-start_step = 11
+pre_trained_model = None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-11.pt') #None
+start_step = 0
 image_size = [512,512]
 num_patches_per_slice = 2
 patch_size = [128,128]
@@ -34,10 +34,10 @@ patch_size = [128,128]
 objective = 'pred_x0' if 'noise' not in trial_name else 'pred_noise'
 print('objective is: ', objective)
 
-histogram_equalization = False
-assert not histogram_equalization, "histogram equalization not needed for this experiment"
+histogram_equalization = True if 'hist' in trial_name else False
+print('histogram equalization:', histogram_equalization)
 background_cutoff = -1000
-maximum_cutoff = 2000
+maximum_cutoff = 1000
 normalize_factor = 'equation'
 
 ######Patient list
@@ -121,8 +121,8 @@ generator_train = G(
         patch_size = patch_size,
 
         histogram_equalization = histogram_equalization,
-        bins = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins.npy'),
-        bins_mapped = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped.npy'),
+        bins = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_lowdoseCT.npy'),
+        bins_mapped = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped_lowdoseCT.npy'),
         background_cutoff = background_cutoff,
         maximum_cutoff = maximum_cutoff,
         normalize_factor = normalize_factor,
@@ -149,8 +149,8 @@ generator_val = G(
         patch_size = [512,512],
 
         histogram_equalization = histogram_equalization,
-        bins = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins.npy'),
-        bins_mapped = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped.npy'),
+        bins = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_lowdoseCT.npy'),
+        bins_mapped = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped_lowdoseCT.npy'),
         background_cutoff = background_cutoff,
         maximum_cutoff = maximum_cutoff,
         normalize_factor = normalize_factor,)
@@ -170,8 +170,8 @@ trainer = ddpm.Trainer(
    
     train_lr = 1e-4,
     train_lr_decay_every = 200, 
-    save_models_every = 1,
-    validation_every = 1,)
+    save_models_every = 2,
+    validation_every = 2,)
 
 
 trainer.train(pre_trained_model=pre_trained_model, start_step= start_step, beta = beta, lpips_weight = lpips_weight, edge_weight = edge_weight)
