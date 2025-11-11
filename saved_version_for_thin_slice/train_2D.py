@@ -58,7 +58,7 @@ print(x0_list_train[0:5], condition_list_train[0:5], x0_list_val[0:5], condition
 
 # define u-net and diffusion model
 model = ddpm.Unet(
-    problem_dimension = problem_dimension,
+    problem_dimension = problem_dimension, 
     init_dim = 64,
     out_dim = 1,
     channels = 1, 

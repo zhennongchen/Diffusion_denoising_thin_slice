@@ -25,8 +25,8 @@ edge_weight = 0#0.05
 condition_channel = 1 if 'adjacent' not in trial_name else 2
 train_batch_size = 5 if supervision == 'supervised' else 10
 
-pre_trained_model = None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-11.pt') #None
-start_step = 0
+pre_trained_model = os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-46.pt') #None
+start_step = 46
 image_size = [512,512]
 num_patches_per_slice = 2
 patch_size = [128,128]

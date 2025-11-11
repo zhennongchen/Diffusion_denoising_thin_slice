@@ -11,12 +11,12 @@ import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
 ###########
-trial_name = 'unsupervised_gaussian'
+trial_name = 'unsupervised_gaussian_adjacent_hist'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
 study_folder = '/host/d/projects/denoising/models'
-epoch =279
+epoch =46
 trained_model_filename = os.path.join(study_folder,trial_name, 'models/model-' + str(epoch)+ '.pt')
 save_folder = os.path.join(study_folder, trial_name, 'pred_images'); os.makedirs(save_folder, exist_ok=True)
 
@@ -30,10 +30,10 @@ image_size = [512,512]
 objective = 'pred_x0' if 'noise' not in trial_name else 'pred_noise'
 sampling_timesteps = 100
 
-histogram_equalization = False
-assert not histogram_equalization, "histogram equalization not needed for this experiment"
+histogram_equalization = True if 'hist' in trial_name else False
+print('histogram equalization:', histogram_equalization)
 background_cutoff = -1000
-maximum_cutoff = 2000
+maximum_cutoff = 1000
 normalize_factor = 'equation'
 clip_range = [-1,1]
 
@@ -120,8 +120,8 @@ for i in range(0, n.shape[0]):
                 slice_range = [100,110],#None,
 
                 histogram_equalization = histogram_equalization,
-                bins = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins.npy'),
-                bins_mapped = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped.npy'),
+                bins = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_lowdoseCT.npy'),
+                bins_mapped = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped_lowdoseCT.npy'),
                 background_cutoff = background_cutoff,
                 maximum_cutoff = maximum_cutoff,
                 normalize_factor = normalize_factor,)
