@@ -73,6 +73,8 @@ class Dataset_2D(Dataset):
 
         preload = False,
         preload_data = None,
+
+        switch_odd_and_even_frequency = -1, # in unsupervised mode, we may want to switch odd and even recons as condition and target
     ):
         super().__init__()
         self.img_list = img_list
@@ -99,6 +101,7 @@ class Dataset_2D(Dataset):
         self.shuffle = shuffle
         self.augment = augment
         self.augment_frequency = augment_frequency
+        self.switch_odd_and_even_frequency = switch_odd_and_even_frequency
         self.num_files = len(img_list)
 
         self.index_array = self.generate_index_array()
@@ -149,8 +152,7 @@ class Dataset_2D(Dataset):
         # cutoff and normalization
         ii = Data_processing.cutoff_intensity(ii,cutoff_low = self.background_cutoff, cutoff_high = self.maximum_cutoff)
         ii = Data_processing.normalize_image(ii, normalize_factor = self.normalize_factor, image_max = self.maximum_cutoff, image_min = self.background_cutoff ,invert = False)
-        if self.preload == False:
-            ii = Data_processing.crop_or_pad(ii, [self.image_size[0], self.image_size[1], ii.shape[2]], value= np.min(ii))
+        ii = Data_processing.crop_or_pad(ii, [self.image_size[0], self.image_size[1], ii.shape[2]], value= np.min(ii))
 
         return ii
         
@@ -193,10 +195,8 @@ class Dataset_2D(Dataset):
                 self.slice_index_list = self.slice_index_list[:self.num_slices_per_image]
             else:
                 self.slice_index_list = np.random.permutation(np.arange(total_slice_range[0], total_slice_range[1]))[:self.num_slices_per_image]
-            # print('in this condition case, slice index list is: ', self.slice_index_list)
 
         # pick the slice
-        # print('pick the slice: ', self.slice_index_list[s])
         s = self.slice_index_list[s]
 
         # pick the patch:
@@ -228,6 +228,13 @@ class Dataset_2D(Dataset):
             
         x0_image_data = torch.from_numpy(x0_image_data).unsqueeze(0).float()
         condition_image_data = torch.from_numpy(condition_image_data).unsqueeze(0).float()
+
+        if random.uniform(0,1) < self.switch_odd_and_even_frequency and self.supervision == 'unsupervised':
+            # switch
+            temp = x0_image_data
+            x0_image_data = condition_image_data
+            condition_image_data = temp
+            # print('switch odd and even recons for unsupervised training!')
             
         # print('shape of x0 image data: ', x0_image_data.shape, ' and condition image data: ', condition_image_data.shape)
         return x0_image_data, condition_image_data
@@ -269,6 +276,8 @@ class Dataset_2D_adjacent_slices(Dataset):
 
         preload = False,
         preload_data = None,
+
+        switch_odd_and_even_frequency = None, # we don't have this option in adjacent slice case
     ):
         super().__init__()
         self.img_list = img_list
