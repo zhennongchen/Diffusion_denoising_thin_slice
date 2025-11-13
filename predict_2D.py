@@ -11,12 +11,12 @@ import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
 ###########
-trial_name = 'unsupervised_gaussian_adjacent_hist_largepatch_singlecase'
+trial_name = 'unsupervised_gaussian_adjacent'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
 study_folder = '/host/d/projects/denoising/models'
-epoch = 360
+epoch = 64
 trained_model_filename = os.path.join(study_folder,trial_name, 'models/model-' + str(epoch)+ '.pt')
 save_folder = os.path.join(study_folder, trial_name, 'pred_images'); os.makedirs(save_folder, exist_ok=True)
 

@@ -124,7 +124,7 @@ def get_additional_filter_to_rl(filename, nu, du, nview, ninterp=20):
 
     return ratio_fix
 
-def interleave_filter_and_recon(projector, prjs, custom_filter,angles, get_recon = True):
+def interleave_filter_and_recon(projector, prjs, custom_filter,angles, get_recon = True, ramp_filter = False):
     # interleave the filter
     projector = copy.deepcopy(projector)
     prjs = prjs.copy()
@@ -161,8 +161,10 @@ def interleave_filter_and_recon(projector, prjs, custom_filter,angles, get_recon
     frl_filter = np.abs(frl_filter)
 
     frl_filter = frl_filter * len(frl_filter) / prjs.shape[1] * du * 2
-
-    custom_filter = frl_filter * custom_filter
+    if ramp_filter == False:
+        custom_filter = frl_filter * custom_filter
+    else:
+        custom_filter = frl_filter
 
     # filter the projection
     fprj = np.fft.fft(prjs, len(custom_filter), axis=-1)

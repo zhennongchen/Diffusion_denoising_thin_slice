@@ -15,7 +15,7 @@ trial_name = 'unsupervised_gaussian_brainCT'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
-epoch = 2640
+epoch = 4760
 trained_model_filename = os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-' + str(epoch)+ '.pt')
 if os.path.isfile(trained_model_filename) ==0:
     print('no model')
