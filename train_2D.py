@@ -10,7 +10,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'unsupervised_gaussian_adjacent_hist'
+trial_name = 'unsupervised_gaussian_adjacent_hist_largepatch_singlecase'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
@@ -25,11 +25,11 @@ edge_weight = 0#0.05
 condition_channel = 1 if 'adjacent' not in trial_name else 2
 train_batch_size = 5 if supervision == 'supervised' else 10
 
-pre_trained_model = os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-46.pt') #None
-start_step = 46
+pre_trained_model = None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-740.pt') #None
+start_step = 0
 image_size = [512,512]
 num_patches_per_slice = 2
-patch_size = [128,128]
+patch_size = [256,256]#[128,128]
 
 objective = 'pred_x0' if 'noise' not in trial_name else 'pred_noise'
 print('objective is: ', objective)
@@ -37,7 +37,7 @@ print('objective is: ', objective)
 histogram_equalization = True if 'hist' in trial_name else False
 print('histogram equalization:', histogram_equalization)
 background_cutoff = -1000
-maximum_cutoff = 1000
+maximum_cutoff = 2000
 normalize_factor = 'equation'
 
 ######Patient list
@@ -49,6 +49,10 @@ elif supervision == 'unsupervised':
 
 # define train patient list
 _, _, _, noise_file_odd_list_train, noise_file_even_list_train, gt_file_list_train, slice_num_list_train = build_sheet.__build__(batch_list = ['train']) 
+noise_file_odd_list_train = noise_file_odd_list_train[0:1]
+noise_file_even_list_train = noise_file_even_list_train[0:1]
+gt_file_list_train = gt_file_list_train[0:1]
+slice_num_list_train = slice_num_list_train[0:1]
 
 # define val patient list
 _, _, _,  noise_file_odd_list_val, noise_file_even_list_val,  gt_file_list_val, slice_num_list_val = build_sheet.__build__(batch_list = ['val'])
@@ -165,13 +169,13 @@ trainer = ddpm.Trainer(
     train_batch_size = train_batch_size,
     
     accum_iter = 1,
-    train_num_steps = 400, # total training epochs
+    train_num_steps = 4000000, # total training epochs
     results_folder = save_models_folder,
    
     train_lr = 1e-4,
-    train_lr_decay_every = 200, 
-    save_models_every = 2,
-    validation_every = 2,)
+    train_lr_decay_every = 500, 
+    save_models_every = 30,
+    validation_every = 30000000,)
 
 
 trainer.train(pre_trained_model=pre_trained_model, start_step= start_step, beta = beta, lpips_weight = lpips_weight, edge_weight = edge_weight)

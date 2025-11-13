@@ -13,8 +13,8 @@ import Diffusion_denoising_thin_slice.Data_processing as Data_processing
 import Diffusion_denoising_thin_slice.functions_collection as ff
 
 # histogram equalization pre-saved load
-bins = np.load('/mnt/camca_NAS/denoising/Data/histogram_equalization/bins.npy')
-bins_mapped = np.load('/mnt/camca_NAS/denoising/Data/histogram_equalization/bins_mapped.npy')
+bins = np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins.npy')
+bins_mapped = np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped.npy')
 
 # random function
 def random_rotate(i, z_rotate_degree = None, z_rotate_range = [-10,10], fill_val = None, order = 1):

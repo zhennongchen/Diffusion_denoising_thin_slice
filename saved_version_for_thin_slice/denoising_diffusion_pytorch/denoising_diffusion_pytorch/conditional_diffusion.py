@@ -1365,8 +1365,8 @@ class Sampler(object):
         
         self.histogram_equalization = self.generator.histogram_equalization
         print('histogram equalization: ', self.histogram_equalization)
-        self.bins = np.load('/mnt/camca_NAS/denoising/Data/histogram_equalization/bins.npy')
-        self.bins_mapped = np.load('/mnt/camca_NAS/denoising/Data/histogram_equalization/bins_mapped.npy')        
+        self.bins = np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins.npy')
+        self.bins_mapped = np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped.npy')        
         self.background_cutoff = self.generator.background_cutoff
         self.maximum_cutoff = self.generator.maximum_cutoff
         self.normalize_factor = self.generator.normalize_factor
@@ -1379,7 +1379,7 @@ class Sampler(object):
         self.ema.to(self.device)
 
     def load_model(self, trained_model_filename):
-
+     
         data = torch.load(trained_model_filename, map_location=self.device)
 
         self.model.load_state_dict(data['model'])
