@@ -10,7 +10,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'unsupervised_gaussian_beta10'
+trial_name = 'supervised_poisson'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'
 adjacent_condition = True if 'adjacent' in trial_name else False
@@ -19,7 +19,7 @@ print('supervision type:', supervision, '; adjacent condition:', adjacent_condit
 preload = True
 
 # bias  
-beta = 10
+beta = 0
 lpips_weight = 0#0.2
 edge_weight = 0#0.05
 
@@ -171,7 +171,7 @@ trainer = ddpm.Trainer(
     train_batch_size = train_batch_size,
     
     accum_iter = 1,
-    train_num_steps = 800, # total training epochs
+    train_num_steps = 400, # total training epochs
     results_folder = save_models_folder,
    
     train_lr = 1e-4,

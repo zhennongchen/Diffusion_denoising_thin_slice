@@ -73,7 +73,7 @@ diffusion_model = ddpm.GaussianDiffusion(
 
 
 G = Generator.Dataset_2D_adjacent_slices  if 'adjacent' in trial_name else Generator.Dataset_2D
-for i in range(0, 1):#n.shape[0]):
+for i in range(0, n.shape[0]):
     patient_id = patient_id_list[n[i]]
     random_num = random_num_list[n[i]]
     noise_file_all = noise_file_all_list[n[i]]
@@ -82,21 +82,24 @@ for i in range(0, 1):#n.shape[0]):
     gt_file = ground_truth_file_list[n[i]]
 
     # here we only use noise odd as condition
-    condition_file = noise_file_odd if supervision == 'unsupervised' else noise_file_all
+    condition_files = [noise_file_odd, noise_file_even] if supervision == 'unsupervised' else [noise_file_all]
+    if len(condition_files) == 2:
+        condition_names = ['odd','even']
 
     print(i,patient_id, random_num)
 
     # get the condition image (noise odd)
-    affine = nb.load(condition_file).affine
-    condition_img = nb.load(noise_file_odd).get_fdata()[:,:,150:160]
+    affine = nb.load(condition_files[0]).affine
+    condition_img = nb.load(condition_files[0]).get_fdata()
     slice_num = condition_img.shape[2]
     print('slice num:', slice_num)
 
     # get ground truth image
-    gt_img = nb.load(gt_file).get_fdata()[:,:,150:160]
+    gt_img = nb.load(gt_file).get_fdata()
 
     if do_pred_or_avg == 'pred':
         iteration_num = 20 if supervision == 'unsupervised' else 1
+
         for iteration in range(1, iteration_num + 1):
             print('iteration:', iteration)
 
@@ -107,36 +110,52 @@ for i in range(0, 1):#n.shape[0]):
             if os.path.isfile(os.path.join(save_folder_case, 'pred_img.nii.gz')):
                 print('already done')
                 continue
+            
+            for condition_i in range(0,len(condition_files)):
 
-            # generator
-            generator = G(
-                supervision = supervision,
+                condition_file = condition_files[condition_i]
+                print('condition file:', condition_file)
 
-                img_list = np.array([condition_file]), # this is a dummy, we do not use it
-                condition_list = np.array([condition_file]),
-                image_size = image_size,
+                # generator
+                generator = G(
+                    supervision = supervision,
 
-                num_slices_per_image = 10,#slice_num, 
-                random_pick_slice = False,
-                slice_range = [150,160],#None,
+                    img_list = np.array([condition_file]), # this is a dummy, we do not use it
+                    condition_list = np.array([condition_file]),
+                    image_size = image_size,
 
-                histogram_equalization = histogram_equalization,
-                bins = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_lowdoseCT.npy'),
-                bins_mapped = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped_lowdoseCT.npy'),
-                background_cutoff = background_cutoff,
-                maximum_cutoff = maximum_cutoff,
-                normalize_factor = normalize_factor,)
+                    num_slices_per_image = slice_num, 
+                    random_pick_slice = False,
+                    slice_range = None,
 
-            # sample:
-            sampler = ddpm.Sampler(diffusion_model,generator,batch_size = 1)
+                    histogram_equalization = histogram_equalization,
+                    bins = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_lowdoseCT.npy'),
+                    bins_mapped = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped_lowdoseCT.npy'),
+                    background_cutoff = background_cutoff,
+                    maximum_cutoff = maximum_cutoff,
+                    normalize_factor = normalize_factor,)
 
-            pred_img = sampler.sample_2D(trained_model_filename, condition_img)
-            print(pred_img.shape)
+                # sample:
+                sampler = ddpm.Sampler(diffusion_model,generator,batch_size = 1)
 
-            pred_img_final = pred_img
+                pred_img = sampler.sample_2D(trained_model_filename, condition_img)
+                print(pred_img.shape)
     
-            # save
-            nb.save(nb.Nifti1Image(pred_img_final, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
+                # save
+                if len(conditon_fileG) == 1:
+                    nb.save(nb.Nifti1Image(pred_img, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
+                else:
+                    nb.save(nb.Nifti1Image(pred_img[:,:,:,condition_i], affine), os.path.join(save_folder_case, 'pred_img_' + condition_names[condition_i] + '.nii.gz'))
+
+            if len(condition_files) == 2:
+                pred_img_final = np.zeros([len(condition_files), pred_img.shape[0], pred_img.shape[1], pred_img.shape[2]])
+                for condition_i in range(0,len(condition_files)):
+                    pred_img_final[condition_i,:,:,:] = nb.load(os.path.join(save_folder_case, 'pred_img_' + condition_names[condition_i] + '.nii.gz')).get_fdata()
+                # average the two conditions
+                pred_img_final = np.mean(pred_img_final, axis = 0)
+                assert pred_img_final.shape == pred_img.shape
+                nb.save(nb.Nifti1Image(pred_img_final, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
+
 
             if iteration == 1:
                 nb.save(nb.Nifti1Image(gt_img, affine), os.path.join(save_folder_case, 'gt_img.nii.gz'))
@@ -156,6 +175,7 @@ for i in range(0, 1):#n.shape[0]):
         if len(made_predicts) == 0:
             print('skip, no made predicts')
             continue
+
         total_predicts = 0
         for jj in range(len(made_predicts)):
             total_predicts += os.path.isfile(os.path.join(made_predicts[jj],'pred_img.nii.gz'))
