@@ -1198,7 +1198,7 @@ class Trainer(object):
             self.step = start_step
         
         self.scheduler.step_size = 1
-        val_loss = np.inf; val_diffusion_loss = np.inf; val_lpips_loss = np.inf; val_edge_loss = np.inf
+        val_loss = np.inf; val_diffusion_loss = np.inf; val_bias_loss = np.inf; val_lpips_loss = np.inf; val_edge_loss = np.inf
         training_log = []
 
         with tqdm(initial = self.step, total = self.train_num_steps, disable = not accelerator.is_main_process) as pbar:
@@ -1207,7 +1207,7 @@ class Trainer(object):
                 print('training epoch: ', self.step + 1)
                 print('learning rate: ', self.scheduler.get_last_lr()[0])
 
-                average_loss = []; average_diffusion_loss = []; average_lpips_loss = []; average_edge_loss = []
+                average_loss = []; average_diffusion_loss = [];average_bias_loss=[]; average_lpips_loss = []; average_edge_loss = []
                 count = 0
                 for batch in self.dl:
                     if count == 0 or count % self.accum_iter == 0 or count == len(self.dl) - 1 or count == len(self.dl):
@@ -1220,10 +1220,10 @@ class Trainer(object):
                     with self.accelerator.autocast():
                         diffusion_loss,model_output, target = self.model(img = data_x0, condition = data_condition)
                         # # bias loss
-                        # gauss_kernel = kernel.get_gaussian_kernel(kernel_size=37, sigma=6)
-                        # lowpass_out = kernel.apply_lowpass_gaussian(model_output, gauss_kernel)
-                        # lowpass_target = kernel.apply_lowpass_gaussian(torch.clone(data_x0), gauss_kernel)
-                        # bias_loss = F.mse_loss(lowpass_out, lowpass_target, reduction='mean')
+                        gauss_kernel = kernel.get_gaussian_kernel(kernel_size=37, sigma=6)
+                        lowpass_out = kernel.apply_lowpass_gaussian(model_output, gauss_kernel)
+                        lowpass_target = kernel.apply_lowpass_gaussian(torch.clone(data_x0), gauss_kernel)
+                        bias_loss = F.mse_loss(lowpass_out, lowpass_target, reduction='mean')
 
                         # calculate lpips loss
                         # clip model_output to [-1,1]
@@ -1235,7 +1235,7 @@ class Trainer(object):
                         # edge loss
                         edge_loss = self.edge_loss_fn(model_output, data_x0)
 
-                        loss = diffusion_loss + lpips_weight * lpips_loss + edge_weight * edge_loss
+                        loss = diffusion_loss + bias_loss * beta + lpips_weight * lpips_loss + edge_weight * edge_loss
 
                     if count % self.accum_iter == 0 or count == len(self.dl) - 1 or count == len(self.dl):
                         self.accelerator.backward(loss)
@@ -1247,16 +1247,16 @@ class Trainer(object):
                     average_diffusion_loss.append(diffusion_loss.item())
                     average_lpips_loss.append(lpips_loss.item())
                     average_edge_loss.append(edge_loss.item())
-                    # average_bias_loss.append(bias_loss.item())
+                    average_bias_loss.append(bias_loss.item())
                     count += 1 
 
                 average_loss = sum(average_loss) / len(average_loss)
                 average_diffusion_loss = sum(average_diffusion_loss) / len(average_diffusion_loss)
                 average_lpips_loss = sum(average_lpips_loss) / len(average_lpips_loss)
                 average_edge_loss = sum(average_edge_loss) / len(average_edge_loss)
-                # average_bias_loss = sum(average_bias_loss) / len(average_bias_loss)
+                average_bias_loss = sum(average_bias_loss) / len(average_bias_loss)
             
-                pbar.set_description(f'average loss: {average_loss:.4f}, diffusion loss: {average_diffusion_loss:.4f}, lpips loss: {average_lpips_loss:.4f}, edge loss: {average_edge_loss:.4f}')
+                pbar.set_description(f'average loss: {average_loss:.4f}, diffusion loss: {average_diffusion_loss:.4f}, bias loss: {average_bias_loss:.4f}')#, lpips loss: {average_lpips_loss:.4f}, edge loss: {average_edge_loss:.4f}')
 
                 accelerator.wait_for_everyone()
 
@@ -1276,18 +1276,18 @@ class Trainer(object):
                     print('validation at step: ', self.step)
                     self.model.eval()
                     with torch.no_grad():
-                        val_loss = []; val_diffusion_loss = []; val_lpips_loss = []; val_edge_loss = []
+                        val_loss = []; val_diffusion_loss = []; val_bias_loss = []; val_lpips_loss = []; val_edge_loss = []
                         for batch in self.dl_val:
                             batch_x0, batch_condition = batch
                             data_x0 = batch_x0.to(device)
                             data_condition = batch_condition.to(device) if self.conditional_diffusion else None
                             with self.accelerator.autocast():
                                 diffusion_loss,model_output, target = self.model(img = data_x0, condition = data_condition)
-                                # # bias loss
-                                # gauss_kernel = kernel.get_gaussian_kernel(kernel_size=37, sigma=6)
-                                # lowpass_out = kernel.apply_lowpass_gaussian(model_output, gauss_kernel)
-                                # lowpass_target = kernel.apply_lowpass_gaussian(torch.clone(data_x0), gauss_kernel)
-                                # bias_loss = F.mse_loss(lowpass_out, lowpass_target, reduction='mean')
+                                # bias loss
+                                gauss_kernel = kernel.get_gaussian_kernel(kernel_size=37, sigma=6)
+                                lowpass_out = kernel.apply_lowpass_gaussian(model_output, gauss_kernel)
+                                lowpass_target = kernel.apply_lowpass_gaussian(torch.clone(data_x0), gauss_kernel)
+                                bias_loss = F.mse_loss(lowpass_out, lowpass_target, reduction='mean')
 
                                 # calculate lpips loss
                                 # clip model_output to [-1,1]
@@ -1299,31 +1299,33 @@ class Trainer(object):
                                 # edge loss
                                 edge_loss = self.edge_loss_fn(model_output, data_x0)
 
-                                loss = diffusion_loss + lpips_weight * lpips_loss + edge_weight * edge_loss
+                                loss = diffusion_loss + lpips_weight * lpips_loss + edge_weight * edge_loss + beta * bias_loss
                             
                             val_loss.append(loss.item())
                             val_diffusion_loss.append(diffusion_loss.item())
                             val_lpips_loss.append(lpips_loss.item())
                             val_edge_loss.append(edge_loss.item())
-                            # val_bias_loss.append(bias_loss.item())
+                            val_bias_loss.append(bias_loss.item())
 
                         val_loss = sum(val_loss) / len(val_loss)
                         val_diffusion_loss = sum(val_diffusion_loss) / len(val_diffusion_loss)
                         val_lpips_loss = sum(val_lpips_loss) / len(val_lpips_loss)
                         val_edge_loss = sum(val_edge_loss) / len(val_edge_loss)
-                        # val_bias_loss = sum(val_bias_loss) / len(val_bias_loss)
+                        val_bias_loss = sum(val_bias_loss) / len(val_bias_loss)
                         print('validation loss: ', val_loss, 
                               'validation diffusion loss: ', val_diffusion_loss,
+                              'validation bias loss: ', val_bias_loss,
                               'validation lpips loss: ', val_lpips_loss,
                                 'validation edge loss: ', val_edge_loss,)
                     self.model.train(True)
 
                 # save the training log
-                training_log.append([self.step,self.scheduler.get_last_lr()[0], average_loss, average_diffusion_loss, 
+                training_log.append([self.step,self.scheduler.get_last_lr()[0], average_loss, average_diffusion_loss, average_bias_loss,
                                         average_lpips_loss, average_edge_loss,
-                                                            val_loss, val_diffusion_loss, val_lpips_loss, val_edge_loss])
-                df = pd.DataFrame(training_log,columns = ['iteration','learning_rate','training_loss','training_diffusion_loss', 'training_lpips_loss', 'training_edge_loss',
-                                                            'validation_loss','validation_diffusion_loss', 'validation_lpips_loss', 'validation_edge_loss'])
+                                                            val_loss, val_diffusion_loss, val_bias_loss, val_lpips_loss, val_edge_loss])
+                df = pd.DataFrame(training_log,columns = ['iteration','learning_rate','training_loss','training_diffusion_loss', 'training_bias_loss',
+                                                            'training_lpips_loss','training_edge_loss',
+                                                            'validation_loss','validation_diffusion_loss', 'validation_bias_loss', 'validation_lpips_loss', 'validation_edge_loss'])
                 log_folder = os.path.join(os.path.dirname(self.results_folder),'log');ff.make_folder([log_folder])
                 df.to_excel(os.path.join(log_folder, 'training_log.xlsx'),index=False)
 

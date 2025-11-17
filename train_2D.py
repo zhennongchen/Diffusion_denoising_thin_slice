@@ -10,7 +10,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'unsupervised_gaussian'
+trial_name = 'unsupervised_gaussian_beta10'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'
 adjacent_condition = True if 'adjacent' in trial_name else False
@@ -19,17 +19,17 @@ print('supervision type:', supervision, '; adjacent condition:', adjacent_condit
 preload = True
 
 # bias  
-beta = 0
+beta = 10
 lpips_weight = 0#0.2
 edge_weight = 0#0.05
 
 # model condition 
 condition_channel = 1 if not adjacent_condition else 2
-train_batch_size = 10
+train_batch_size = 3
 objective = 'pred_x0' #if 'noise' not in trial_name else 'pred_noise'
 
-pre_trained_model = None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-6.pt') #None
-start_step = 0
+pre_trained_model =  None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-216.pt') #None
+start_step = 0#216
 
 # image condition
 image_size = [512,512]
@@ -171,7 +171,7 @@ trainer = ddpm.Trainer(
     train_batch_size = train_batch_size,
     
     accum_iter = 1,
-    train_num_steps = 40000, # total training epochs
+    train_num_steps = 800, # total training epochs
     results_folder = save_models_folder,
    
     train_lr = 1e-4,
