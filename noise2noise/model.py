@@ -745,8 +745,8 @@ class Sampler(object):
         dl = DataLoader(self.generator, batch_size = self.batch_size, shuffle = False, pin_memory = True, num_workers = 0)# cpu_count())
         self.histogram_equalization = self.generator.histogram_equalization
         print('histogram equalization: ', self.histogram_equalization)
-        self.bins = np.load('/mnt/camca_NAS/denoising/Data/histogram_equalization/bins.npy')
-        self.bins_mapped = np.load('/mnt/camca_NAS/denoising/Data/histogram_equalization/bins_mapped.npy')        
+        self.bins = self.generator.bins
+        self.bins_mapped = self.generator.bins_mapped 
         self.background_cutoff = self.generator.background_cutoff
         self.maximum_cutoff = self.generator.maximum_cutoff
         self.normalize_factor = self.generator.normalize_factor

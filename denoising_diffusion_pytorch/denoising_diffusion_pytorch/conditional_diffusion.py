@@ -1391,10 +1391,11 @@ class Sampler(object):
         self.ema.load_state_dict(data["ema"])
 
 
-    def sample_2D(self, trained_model_filename, condition_img):
+    def sample_2D(self, trained_model_filename, condition_img, direct_use_of_model = False):
         
         background_cutoff = self.background_cutoff; maximum_cutoff = self.maximum_cutoff; normalize_factor = self.normalize_factor
-        self.load_model(trained_model_filename) 
+        if direct_use_of_model == False:
+            self.load_model(trained_model_filename) 
         
         device = self.device
 
