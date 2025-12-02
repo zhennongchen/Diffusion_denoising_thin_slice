@@ -7,6 +7,7 @@ import nibabel as nb
 import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 
+
 main_path = '/mnt/camca_NAS/denoising/models'
 
 model_name = 'unsupervised_gaussian_beta0'

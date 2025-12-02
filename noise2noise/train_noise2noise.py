@@ -9,12 +9,12 @@ import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
 #######################
-trial_name = 'noise2noise_2'
+trial_name = 'noise2noise_simple'
 preload = True
 supervision = 'unsupervised' 
 
-pre_trained_model = os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-30.pt')
-start_step = 30
+pre_trained_model = None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-30.pt')
+start_step = 0
 train_batch_size = 3
 
 image_size = [512,512]
@@ -23,9 +23,9 @@ patch_size = [256,256]
 
 histogram_equalization = False# if 'hist' in trial_name else False
 print('histogram equalization:', histogram_equalization)
-background_cutoff = -200
-maximum_cutoff = 250
-normalize_factor = 'equation'
+background_cutoff = -1000
+maximum_cutoff = 2000
+normalize_factor = 1000
 #######################
 # define train
 build_sheet =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v2.xlsx'))
@@ -40,12 +40,19 @@ print('number of training cases:', gt_file_list_train.shape[0], '; number of val
 
 
 # build model
-model = noise2noise.Unet2D(
-    init_dim = 16,
-    channels = 1, 
-    out_dim = 1,
+model = noise2noise.Unet(
+    problem_dimension = '2D',  # '2D' or '3D'
+  
+    input_channels = 1,
+    out_channels = 1,  
+    initial_dim = 16,  # initial feature dimension after first conv layer
     dim_mults = (2,4,8,16),
-    full_attn = (None,None, False, False),
+    groups = 8,
+      
+    attn_dim_head = 32,
+    attn_heads = 4,
+    full_attn_paths = (None, None, None, None), # these are for downsampling and upsampling paths
+    full_attn_bottleneck = None, # this is for the middle bottleneck layer
     act = 'ReLU',
 )
 
@@ -124,7 +131,7 @@ trainer = noise2noise.Trainer(
     generator_val = generator_val,
     train_batch_size = train_batch_size,
 
-    train_num_steps = 600, # total training epochs
+    train_num_steps = 150, # total training epochs
     results_folder = save_models_folder,
    
     train_lr = 1e-4,

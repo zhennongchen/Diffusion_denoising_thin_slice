@@ -389,29 +389,41 @@ class ResnetBlock3D(nn.Module):
 
         return h + self.res_conv(x)
     
-    
-class Unet2D(nn.Module):
+class Unet(nn.Module):
     def __init__(
         self,
-        init_dim = 16,
-        channels = 1,
+        problem_dimension = '2D',  # '2D' or '3D'
+  
+        input_channels = 1,
+        out_channels = 1,  
 
-        out_dim = None,
+        initial_dim = 16,  # initial feature dimension after first conv layer
         dim_mults = (2,4,8,16),
-        self_condition = False,   # use the prediction from the previous iteration as the condition of next iteration
+        groups = 4,
+      
         attn_dim_head = 32,
         attn_heads = 4,
-        full_attn = (None, None, None, True),
+        full_attn_paths = (None, None, None, True), # these are for downsampling and upsampling paths
+        full_attn_bottleneck = None, # this is for the middle bottleneck layer
         act = 'ReLU',
     ):
         super().__init__()
-    
-        self.channels = channels
-        input_channels = channels
 
-        self.init_conv = nn.Conv2d(input_channels, init_dim, 3, padding = 1) # if want input and output to have same dimension, Kernel size to any odd number (e.g., 3, 5, 7, etc.). Padding to (kernel size - 1) / 2.
+        self.input_channels = input_channels
+        self.out_channels = out_channels
+        self.problem_dimension = problem_dimension
+        self.groups = groups
 
-        dims = [init_dim, *map(lambda m: init_dim * m, dim_mults)]  # if initi_dim = 16, then [16, 32, 64, 128, 256]
+        conv_layer = nn.Conv2d if self.problem_dimension == '2D' else nn.Conv3d
+        ResnetBlock = ResnetBlock2D if self.problem_dimension == '2D' else ResnetBlock3D
+        Attention = Attention2D if self.problem_dimension == '2D' else Attention3D
+        LinearAttention = LinearAttention2D if self.problem_dimension == '2D' else LinearAttention3D
+        downsample_layer = Downsample2D if self.problem_dimension == '2D' else Downsample3D
+        upsample_layer = Upsample2D if self.problem_dimension == '2D' else Upsample3D
+
+        self.init_conv = conv_layer(self.input_channels, initial_dim, 3, padding = 1) # if want input and output to have same dimension, Kernel size to any odd number (e.g., 3, 5, 7, etc.). Padding to (kernel size - 1) / 2.
+
+        dims = [initial_dim, *map(lambda m: initial_dim * m, dim_mults)]  # if initi_dim = 16, then [16, 32, 64, 128, 256]
 
         in_out = list(zip(dims[:-1], dims[1:])) 
         print('in out is : ', in_out)
@@ -419,7 +431,8 @@ class Unet2D(nn.Module):
 
         # attention
         num_stages = len(dim_mults)
-        full_attn  = cast_tuple(full_attn, num_stages)
+        full_attn  = cast_tuple(full_attn_paths, num_stages)
+        self.full_attn_bottleneck = full_attn_bottleneck
         attn_heads = cast_tuple(attn_heads, num_stages)
         attn_dim_head = cast_tuple(attn_dim_head, num_stages)
 
@@ -438,12 +451,12 @@ class Unet2D(nn.Module):
             # in each downsample stage, 
             # we have a resnetblock and then downsampling layer (downsample x and y by 2, then increase the feature number by 2)
             self.downs.append(nn.ModuleList([
-                ResnetBlock2D(dim_in, dim_in, use_full_attention = layer_full_attn, attn_head = layer_attn_heads, attn_dim_head = layer_attn_dim_head, act = act),
-                Downsample2D(dim_in, dim_out) if not is_last else nn.Conv2d(dim_in, dim_out, 3, padding = 1)
+                ResnetBlock(dim_in, dim_in, use_full_attention = layer_full_attn, attn_head = layer_attn_heads, attn_dim_head = layer_attn_dim_head, act = act, groups = self.groups),
+                downsample_layer(dim_in, dim_out) if not is_last else conv_layer(dim_in, dim_out, 3, padding = 1)
             ]))
 
         mid_dim = dims[-1]
-        self.mid_block = ResnetBlock2D(mid_dim, mid_dim, use_full_attention = True, attn_head = attn_heads[-1], attn_dim_head = attn_dim_head[-1], act = act)
+        self.mid_block = ResnetBlock(mid_dim, mid_dim, use_full_attention = self.full_attn_bottleneck, attn_head = attn_heads[-1], attn_dim_head = attn_dim_head[-1], act = act, groups = self.groups)
 
         for ind, ((dim_in, dim_out), layer_full_attn, layer_attn_heads, layer_attn_dim_head) in enumerate(zip(*map(reversed, (in_out, full_attn, attn_heads, attn_dim_head)))):
             # print(' in upsampling path, ind is: ', ind, ' dim_in is: ', dim_in, ' dim_out is: ', dim_out, ' layer_full_attn is: ', layer_full_attn, ' layer_attn_heads is: ', layer_attn_heads, ' layer_attn_dim_head is: ', layer_attn_dim_head)
@@ -452,13 +465,13 @@ class Unet2D(nn.Module):
             # in each upsample stage,
             # we have a resnetblock and then upsampling layer (upsample x and y by 2, then decrease the feature number by 2)
             self.ups.append(nn.ModuleList([
-                ResnetBlock2D(dim_out + dim_in, dim_out, use_full_attention = layer_full_attn, attn_head = layer_attn_heads, attn_dim_head = layer_attn_dim_head, act = act),
-                Upsample2D(dim_out, dim_in) if not is_last else  nn.Conv2d(dim_out, dim_in, 5, padding = 2)  
+                ResnetBlock(dim_out + dim_in, dim_out, use_full_attention = layer_full_attn, attn_head = layer_attn_heads, attn_dim_head = layer_attn_dim_head, act = act, groups = self.groups),
+                upsample_layer(dim_out, dim_in) if not is_last else  conv_layer(dim_out, dim_in, 5, padding = 2)  
             ]))
 
-        self.out_dim = out_dim if out_dim is not None else channels
-        self.final_res_block = ResnetBlock2D(init_dim * 2, init_dim, use_full_attention = None, attn_head = attn_heads[0], attn_dim_head = attn_dim_head[0], act = act)
-        self.final_conv = nn.Conv2d(init_dim, self.out_dim, 1)  # output channel is initial channel number
+      
+        self.final_res_block = ResnetBlock(initial_dim * 2, initial_dim, use_full_attention = None, attn_head = attn_heads[0], attn_dim_head = attn_dim_head[0], act = act, groups = self.groups)
+        self.final_conv = conv_layer(initial_dim, self.out_channels, 1) 
 
     def forward(self, x):
 
@@ -488,6 +501,107 @@ class Unet2D(nn.Module):
         # print('final image shape is: ', final_image.shape)
       
         return final_image
+
+
+# class Unet2D(nn.Module):
+#     def __init__(
+#         self,
+#         init_dim = 16,
+#         channels = 1,
+
+#         out_dim = None,
+#         dim_mults = (2,4,8,16),
+#         self_condition = False,   # use the prediction from the previous iteration as the condition of next iteration
+#         attn_dim_head = 32,
+#         attn_heads = 4,
+#         full_attn = (None, None, None, True),
+#         bottleneck_attn = True,
+#         act = 'ReLU',
+#     ):
+#         super().__init__()
+    
+#         self.channels = channels
+#         input_channels = channels
+
+#         self.init_conv = nn.Conv2d(input_channels, init_dim, 3, padding = 1) # if want input and output to have same dimension, Kernel size to any odd number (e.g., 3, 5, 7, etc.). Padding to (kernel size - 1) / 2.
+
+#         dims = [init_dim, *map(lambda m: init_dim * m, dim_mults)]  # if initi_dim = 16, then [16, 32, 64, 128, 256]
+
+#         in_out = list(zip(dims[:-1], dims[1:])) 
+#         print('in out is : ', in_out)
+#         # [(16,32), (32,64), (64,128), (128,256)]. Each tuple in in_out represents a pair of input and output dimensions for different stages in a neural network 
+
+#         # attention
+#         num_stages = len(dim_mults)
+#         full_attn  = cast_tuple(full_attn, num_stages)
+#         attn_heads = cast_tuple(attn_heads, num_stages)
+#         attn_dim_head = cast_tuple(attn_dim_head, num_stages)
+
+#         assert len(full_attn) == len(dim_mults)
+
+#         # layers
+
+#         self.downs = nn.ModuleList([])
+#         self.ups = nn.ModuleList([])
+#         num_resolutions = len(in_out) # 4
+
+#         for ind, ((dim_in, dim_out), layer_full_attn, layer_attn_heads, layer_attn_dim_head) in enumerate(zip(in_out, full_attn, attn_heads, attn_dim_head)):
+#             # print(' in downsampling path, ind is: ', ind, ' dim_in is: ', dim_in, ' dim_out is: ', dim_out, ' layer_full_attn is: ', layer_full_attn, ' layer_attn_heads is: ', layer_attn_heads, ' layer_attn_dim_head is: ', layer_attn_dim_head)
+#             is_last = ind >= (num_resolutions - 1)
+
+#             # in each downsample stage, 
+#             # we have a resnetblock and then downsampling layer (downsample x and y by 2, then increase the feature number by 2)
+#             self.downs.append(nn.ModuleList([
+#                 ResnetBlock2D(dim_in, dim_in, use_full_attention = layer_full_attn, attn_head = layer_attn_heads, attn_dim_head = layer_attn_dim_head, act = act),
+#                 Downsample2D(dim_in, dim_out) if not is_last else nn.Conv2d(dim_in, dim_out, 3, padding = 1)
+#             ]))
+
+#         mid_dim = dims[-1]
+#         self.mid_block = ResnetBlock2D(mid_dim, mid_dim, use_full_attention = bottleneck_attn, attn_head = attn_heads[-1], attn_dim_head = attn_dim_head[-1], act = act)
+
+#         for ind, ((dim_in, dim_out), layer_full_attn, layer_attn_heads, layer_attn_dim_head) in enumerate(zip(*map(reversed, (in_out, full_attn, attn_heads, attn_dim_head)))):
+#             # print(' in upsampling path, ind is: ', ind, ' dim_in is: ', dim_in, ' dim_out is: ', dim_out, ' layer_full_attn is: ', layer_full_attn, ' layer_attn_heads is: ', layer_attn_heads, ' layer_attn_dim_head is: ', layer_attn_dim_head)
+#             is_last = ind == (len(in_out) - 1)
+          
+#             # in each upsample stage,
+#             # we have a resnetblock and then upsampling layer (upsample x and y by 2, then decrease the feature number by 2)
+#             self.ups.append(nn.ModuleList([
+#                 ResnetBlock2D(dim_out + dim_in, dim_out, use_full_attention = layer_full_attn, attn_head = layer_attn_heads, attn_dim_head = layer_attn_dim_head, act = act),
+#                 Upsample2D(dim_out, dim_in) if not is_last else  nn.Conv2d(dim_out, dim_in, 5, padding = 2)  
+#             ]))
+
+#         self.out_dim = out_dim if out_dim is not None else channels
+#         self.final_res_block = ResnetBlock2D(init_dim * 2, init_dim, use_full_attention = None, attn_head = attn_heads[0], attn_dim_head = attn_dim_head[0], act = act)
+#         self.final_conv = nn.Conv2d(init_dim, self.out_dim, 1)  # output channel is initial channel number
+
+#     def forward(self, x):
+
+#         x = self.init_conv(x)
+#         # print('initial x shape is: ', x.shape)
+#         x_init = x.clone()
+
+#         h = []
+#         for block, downsample in self.downs:
+#             x = block(x)
+#             h.append(x)
+
+#             x = downsample(x)
+        
+#         x = self.mid_block(x)
+#         # print('middle x shape is: ', x.shape)
+        
+#         for block, upsample in self.ups:
+#             x = torch.cat((x, h.pop()), dim = 1)   # h.pop() is the output of the corresponding downsample stage
+#             x = block(x)
+#             x = upsample(x)
+
+#         x = torch.cat((x, x_init), dim = 1)
+
+#         x = self.final_res_block(x)
+#         final_image = self.final_conv(x)
+#         # print('final image shape is: ', final_image.shape)
+      
+#         return final_image
 
 
 class Trainer(object):
@@ -536,8 +650,6 @@ class Trainer(object):
         #     self.loss_function = F.l1_loss
         # elif self.specify_loss == 'both':
         self.loss_function1 = F.mse_loss; self.loss_function2 = F.l1_loss
-
-        self.channels = model.channels
 
         # sampling and training hyperparameters
         self.batch_size = train_batch_size
@@ -736,7 +848,6 @@ class Sampler(object):
         if device == 'cpu':
             self.device = torch.device("cpu")
 
-        self.channels = model.channels
         self.image_size = image_size
         self.batch_size = batch_size
 
