@@ -15,7 +15,7 @@ trial_name = 'noise2noise'
 study_folder = '/host/d/projects/denoising/models'
 epoch = 80
 trained_model_filename = os.path.join(study_folder,trial_name, 'models/model-' + str(epoch)+ '.pt')
-save_folder = os.path.join(study_folder, trial_name, 'pred_images_bothinput'); os.makedirs(save_folder, exist_ok=True)
+save_folder = os.path.join(study_folder, trial_name, 'pred_images_input_both'); os.makedirs(save_folder, exist_ok=True)
 
 image_size = [512,512]
 
@@ -60,7 +60,7 @@ for i in range(0,n.shape[0]):
 
     # get the condition image (noise odd)
     affine = nb.load(condition_files[0]).affine
-    condition_img = nb.load(condition_files[0]).get_fdata()
+    condition_img = nb.load(condition_files[0]).get_fdata()[:,:,100:200]
     slice_num = condition_img.shape[2]
     print('slice num:', slice_num)
 
@@ -88,9 +88,9 @@ for i in range(0,n.shape[0]):
             condition_list = np.array([condition_file]),
             image_size = image_size,
 
-            num_slices_per_image = slice_num, 
+            num_slices_per_image = 100,#slice_num, 
             random_pick_slice = False,
-            slice_range = None,
+            slice_range = [100,200],# None,
             
             histogram_equalization = histogram_equalization,
             bins = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_lowdoseCT.npy'),
@@ -121,4 +121,4 @@ for i in range(0,n.shape[0]):
         nb.save(nb.Nifti1Image(pred_img_final, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
 
     # save condition
-    nb.save(nb.Nifti1Image(condition_img, affine),  os.path.join(save_folder_case, 'condition_img.nii.gz'))
+    # nb.save(nb.Nifti1Image(condition_img, affine),  os.path.join(save_folder_case, 'condition_img.nii.gz'))
