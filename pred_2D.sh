@@ -10,7 +10,7 @@
 
 # # ============ USER SETTINGS ============
 TRIAL="unsupervised_gaussian_2"
-MODE="pred"   # or: avg
+MODE="avg"   # or: avg
 INPUT="both"   # or: odd / even / both / all
 RANGE="100-200"
 # =======================================
