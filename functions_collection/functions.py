@@ -279,10 +279,13 @@ def sample_patch_origins(patch_origins, N, include_original_list = None):
 
 
 # function: preload data
-def preload_data(file_list):
+def preload_data(file_list, slice_range = None):
     loaded_image = []
     for nn in range(0, len(file_list)):
-        
+       
         img = nb.load(file_list[nn]).get_fdata()
+        print('preloading file:', file_list[nn], '; image shape:', img.shape)
+        if slice_range is not None:
+            img = img[:,:, slice_range[0]:slice_range[1]]
         loaded_image.append(img)
     return loaded_image

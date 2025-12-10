@@ -39,7 +39,7 @@ def run(args):
     do_pred_or_avg = args.mode  #'avg' #'pred'
     input_condition = args.input  #'both', 'odd', 'even', 'all'
 
-    supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
+    supervision = 'supervised' 
 
     study_folder = '/host/d/projects/denoising/models'
     trained_model_filename = os.path.join(study_folder,trial_name, 'models/model-' + str(epoch)+ '.pt')
@@ -55,8 +55,8 @@ def run(args):
     normalize_factor = 'equation'
 
     ###########
-    build_sheet =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v2.xlsx'))
-    _, patient_id_list, random_num_list, noise_file_all_list, noise_file_odd_list, noise_file_even_list, ground_truth_file_list, _ = build_sheet.__build__(batch_list = ['train','val'])
+    build_sheet =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_distill_v2.xlsx'))
+    _, patient_id_list, random_num_list, noise_file_all_list, noise_file_odd_list, noise_file_even_list, ground_truth_file_list, _,_,_ = build_sheet.__build__(batch_list = ['test'], distill=True)
     print('total cases:', patient_id_list.shape[0])
     n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 1)
     print('total number:', n.shape[0])
@@ -86,12 +86,10 @@ def run(args):
         clip_range = [-1,1], )
 
 
-    G = Generator.Dataset_2D_adjacent_slices  if 'adjacent' in trial_name else Generator.Dataset_2D
+    G = Generator.Dataset_2D
     for i in range(0,n.shape[0]):
         patient_id, random_num,noise_file_all, noise_file_odd, noise_file_even, gt_file = patient_id_list[n[i]], random_num_list[n[i]], noise_file_all_list[n[i]], noise_file_odd_list[n[i]], noise_file_even_list[n[i]], ground_truth_file_list[n[i]]
         
-        if supervision == 'supervised':
-            assert input_condition in ['all']
         if input_condition == 'both':
             condition_files = [noise_file_odd, noise_file_even]
         elif input_condition == 'odd':
@@ -104,15 +102,12 @@ def run(args):
         if len(condition_files) == 2:
             condition_names = ['odd','even']
 
-        if patient_id != 'L109':
-            continue
-
         print(i,patient_id, random_num)
 
         # get the condition image (noise odd)
         affine = nb.load(condition_files[0]).affine
         condition_img = nb.load(condition_files[0]).get_fdata()
-        if args.slice_range is not "all":
+        if args.slice_range != "all":
             slice_start, slice_end = args.slice_range.split('-')
             slice_start, slice_end = int(slice_start), int(slice_end)
         else:

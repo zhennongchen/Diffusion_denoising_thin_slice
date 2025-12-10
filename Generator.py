@@ -175,6 +175,7 @@ class Dataset_2D(Dataset):
                 x0_img = self.load_file(preload_data = self.preload_img_data[f])
             self.current_x0_file = x0_filename
             self.current_x0_data = np.copy(x0_img)
+            print('current x0 data shape is: ', self.current_x0_data.shape)
 
         if condition_file != self.current_condition_file:
             if self.preload == False:
@@ -183,6 +184,7 @@ class Dataset_2D(Dataset):
                 condition_img = self.load_file(preload_data = self.preload_condition_data[f])
             self.current_condition_file = condition_file
             self.current_condition_data = np.copy(condition_img)
+            print('current condition data shape is: ', self.current_condition_data.shape)
 
             # define a list of random slice numbers for this new sample
             if self.slice_range == None:

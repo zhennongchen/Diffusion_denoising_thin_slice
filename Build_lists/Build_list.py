@@ -10,7 +10,7 @@ class Build():
         # self.data = pd.read_excel(file_list, dtype = {'Patient_ID': str, 'Patient_subID': str})
         self.data = pd.read_excel(file_list, dtype = {'Patient_ID': str})
 
-    def __build__(self,batch_list):
+    def __build__(self,batch_list, distill=False):
         for b in range(len(batch_list)):
             cases = self.data.loc[self.data['batch'] == batch_list[b]]
             if b == 0:
@@ -26,6 +26,11 @@ class Build():
         noise_file_even_list = np.asarray(c['simulation_file_even'])
         ground_truth_file_list = np.asarray(c['ground_truth_file']) 
         slice_num_list = np.asarray(c['slice_num']) if 'slice_num' in c.columns else None
+        if distill:
+            generated_20_file_list = np.asarray(c['generated_20_file'])
+            generated_10_file_list = np.asarray(c['generated_10_file'])
 
-        
-        return batch_list, patient_id_list, random_num_list, noise_file_all_list, noise_file_odd_list, noise_file_even_list, ground_truth_file_list, slice_num_list
+        if distill:
+            return batch_list, patient_id_list, random_num_list, noise_file_all_list, noise_file_odd_list, noise_file_even_list, ground_truth_file_list, slice_num_list, generated_20_file_list, generated_10_file_list
+        else:
+            return batch_list, patient_id_list, random_num_list, noise_file_all_list, noise_file_odd_list, noise_file_even_list, ground_truth_file_list, slice_num_list

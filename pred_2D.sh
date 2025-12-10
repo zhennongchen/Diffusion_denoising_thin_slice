@@ -9,20 +9,20 @@
 # echo "Finished all jobs"
 
 # # ============ USER SETTINGS ============
-TRIAL="unsupervised_gaussian_2"
-MODE="avg"   # or: avg
-INPUT="both"   # or: odd / even / both / all
-RANGE="100-200"
+TRIAL="distill"
+MODE="pred"   # or: avg
+INPUT="all"   # or: odd / even / both / all
+RANGE="all"
 # =======================================
 
 # list of epochs you want to run
-EPOCH_LIST=(190)
+EPOCH_LIST=(265 350 400 365 295)
 
 # loop through epochs
 for EPOCH in "${EPOCH_LIST[@]}"; do
     echo "Running epoch $EPOCH ..."
     
-    python3 predict_2D.py \
+    python3 predict_2D_distill.py \
         --trial_name $TRIAL \
         --epoch $EPOCH \
         --mode $MODE \
