@@ -9,13 +9,13 @@ import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
 #######################
-trial_name = 'noise2noise_simple_gaussian'
+trial_name = 'noise2noise_simple_gaussian_twoacq_all'
 preload = True
 supervision = 'unsupervised' 
 
-pre_trained_model = os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-20.pt')
-start_step = 20
-train_batch_size = 1
+pre_trained_model = None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-30.pt')
+start_step = 0
+train_batch_size = 2
 
 image_size = [512,512]
 num_patches_per_slice = 1
@@ -28,15 +28,18 @@ maximum_cutoff = 2000
 normalize_factor = 1000
 #######################
 # define train
-build_sheet =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v2.xlsx'))
+build_sheet_v2 =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v2.xlsx'))
+build_sheet_v3 = Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v3.xlsx'))
 
 # define train patient list
-_, _, _, noise_file_all_list_train, noise_file_odd_list_train, noise_file_even_list_train, gt_file_list_train, slice_num_list_train = build_sheet.__build__(batch_list = ['train']) 
+_, _, _, noise_file_all_list_train2, noise_file_odd_list_train2, noise_file_even_list_train2, gt_file_list_train2, slice_num_list_train2 = build_sheet_v2.__build__(batch_list = ['train']) 
+_, _, _, noise_file_all_list_train3, noise_file_odd_list_train3, noise_file_even_list_train3, gt_file_list_train3, slice_num_list_train3 = build_sheet_v3.__build__(batch_list = ['train']) 
 
 # define val patient list
-_, _, _,  noise_file_all_list_val, noise_file_odd_list_val, noise_file_even_list_val,  gt_file_list_val, slice_num_list_val = build_sheet.__build__(batch_list = ['val'])
+_, _, _,  noise_file_all_list_val2, noise_file_odd_list_val2, noise_file_even_list_val2,  gt_file_list_val2, slice_num_list_val2 = build_sheet_v2.__build__(batch_list = ['val'])
+_, _, _,  noise_file_all_list_val3, noise_file_odd_list_val3, noise_file_even_list_val3,  gt_file_list_val3, slice_num_list_val3 = build_sheet_v2.__build__(batch_list = ['val'])
 
-print('number of training cases:', gt_file_list_train.shape[0], '; number of validation cases:', gt_file_list_val.shape[0])
+print('number of training cases:', gt_file_list_train2.shape[0], '; number of validation cases:', gt_file_list_val2.shape[0])
 
 
 # build model
@@ -58,8 +61,8 @@ model = noise2noise.Unet(
 
 # build generator
 # first we define the image list 
-x0_list_train, condition_list_train = noise_file_even_list_train, noise_file_odd_list_train
-x0_list_val, condition_list_val = noise_file_even_list_val, noise_file_odd_list_val
+x0_list_train, condition_list_train = noise_file_all_list_train2, noise_file_all_list_train3
+x0_list_val, condition_list_val = noise_file_all_list_val2, noise_file_all_list_val3
 print('example x0 train file:', x0_list_train[0], '; example condition file:', condition_list_train[0])
 print('example x0 val file:', x0_list_val[0], '; example condition file:', condition_list_val[0])
 # preload_data if needed
