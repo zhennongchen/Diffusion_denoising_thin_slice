@@ -50,6 +50,11 @@ def run(args):
     objective = 'pred_x0' 
     sampling_timesteps = 50 # 100
 
+    histogram_equalization = False
+    background_cutoff =  2.5e-06
+    maximum_cutoff = 0.00015
+    normalize_factor = 'equation'
+
     ###########
     build_sheet =  Build_list.Build(os.path.join('/host/d/Data/NYU_MR/Patient_lists/NYU_MR_simulation.xlsx'))
 
@@ -148,7 +153,9 @@ def run(args):
                         condition_list = np.array([condition_file]),
                         image_size = image_size,
 
-                        cutoff_percentile = [1.0,99.0],
+                        background_cutoff = background_cutoff,
+                        maximum_cutoff = maximum_cutoff,
+                        normalize_factor = normalize_factor,
 
                         num_slices_per_image = slice_num,
                         random_pick_slice = False,

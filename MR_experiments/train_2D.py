@@ -23,7 +23,7 @@ edge_weight = 0#0.05
 
 # model condition 
 condition_channel = 1 
-train_batch_size = 5
+train_batch_size = 3
 objective = 'pred_x0' #if 'noise' not in trial_name else 'pred_noise'
 
 pre_trained_model =  None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-216.pt') #None
@@ -34,24 +34,25 @@ image_size = [640,320]
 num_patches_per_slice = 2
 patch_size = [320,320]#[128,128]
 
-cutoff_percentile = [1.0, 99.0] 
+histogram_equalization = False
+background_cutoff =  2.5e-06
+maximum_cutoff = 0.00015
+normalize_factor = 'equation'
 
 ######Patient list
 # define train
-
 build_sheet =  Build_list.Build(os.path.join('/host/d/Data/NYU_MR/Patient_lists/NYU_MR_simulation.xlsx'))
 
 # define train patient list
 _, _, _, noise_file_all_list_train, noise_file_odd_list_train, noise_file_even_list_train, gt_file_list_train, slice_num_list_train = build_sheet.__build__(batch_list = ['train']) 
-# noise_file_all_list_train = noise_file_all_list_train[0:1]
-# noise_file_odd_list_train = noise_file_odd_list_train[0:1]
-# noise_file_even_list_train = noise_file_even_list_train[0:1]
-# gt_file_list_train = gt_file_list_train[0:1]
-# slice_num_list_train = slice_num_list_train[0:1]
+# noise_file_all_list_train = noise_file_all_list_train[25:26]
+# noise_file_odd_list_train = noise_file_odd_list_train[25:26]
+# noise_file_even_list_train = noise_file_even_list_train[25:26]
+# gt_file_list_train = gt_file_list_train[25:26]
+# slice_num_list_train = slice_num_list_train[25:26]
 
 # define val patient list
 _, _, _,  noise_file_all_list_val, noise_file_odd_list_val, noise_file_even_list_val,  gt_file_list_val, slice_num_list_val = build_sheet.__build__(batch_list = ['val'])
-
 
 print('number of training cases:', gt_file_list_train.shape[0], '; number of validation cases:', gt_file_list_val.shape[0], ' example of noise_odd_list_train:', noise_file_odd_list_train[0])
 
@@ -96,7 +97,6 @@ if preload  == True:
     x0_data_val, condition_data_val = ff.preload_data(x0_list_val,transpose = True), ff.preload_data(condition_list_val, transpose = True)
 
 # data generator
-
 G =  Generator_MR.Dataset_2D
 generator_train = G(
         supervision = supervision,
@@ -112,7 +112,9 @@ generator_train = G(
         random_pick_slice = True,
         slice_range = None,
 
-        cutoff_percentile = cutoff_percentile,
+        background_cutoff = background_cutoff,
+        maximum_cutoff = maximum_cutoff,
+        normalize_factor = normalize_factor,
 
         num_patches_per_slice = num_patches_per_slice,
         patch_size = patch_size,
@@ -134,7 +136,9 @@ generator_val = G(
         condition_list = condition_list_val,
         image_size = image_size,
 
-        cutoff_percentile = cutoff_percentile,
+        background_cutoff = background_cutoff,
+        maximum_cutoff = maximum_cutoff,
+        normalize_factor = normalize_factor,
 
         num_slices_per_image = 20,
         random_pick_slice = False,

@@ -62,7 +62,10 @@ class Dataset_2D(Dataset):
         augment = False,
         augment_frequency = 0,
 
-        cutoff_percentile = None,#[1.0, 99.0],
+        histogram_equalization = False,
+        background_cutoff = None,
+        maximum_cutoff = None,
+        normalize_factor = 'equation',
 
         preload = False,
         preload_data = None,
@@ -84,7 +87,10 @@ class Dataset_2D(Dataset):
         self.preload_img_data = preload_data[0] if self.preload == True else None
         self.preload_condition_data = preload_data[1] if self.preload == True else None
 
-        self.cutoff_percentile = cutoff_percentile
+        self.histogram_equalization = histogram_equalization
+        self.background_cutoff = background_cutoff
+        self.maximum_cutoff = maximum_cutoff
+        self.normalize_factor = normalize_factor
 
         self.shuffle = shuffle
         self.augment = augment
@@ -137,14 +143,14 @@ class Dataset_2D(Dataset):
             ii = preload_data
     
         # normalization
-        if self.cutoff_percentile is None:
-            maximum_cutoff = np.max(ii)
-            background_cutoff = np.min(ii)
-        else:
-            maximum_cutoff = np.percentile(ii, self.cutoff_percentile[1])
-            background_cutoff = np.percentile(ii, self.cutoff_percentile[0])
-            ii = Data_processing.cutoff_intensity(ii, cutoff_low = background_cutoff, cutoff_high = maximum_cutoff)
-        ii = Data_processing.normalize_image(ii, normalize_factor = 'equation', image_max = maximum_cutoff, image_min = background_cutoff , invert = False)
+        if self.background_cutoff is None:
+            assert self.background_cutoff is None
+            self.maximum_cutoff = np.max(ii)
+            self.background_cutoff = np.min(ii)
+        # print('self maximum cutoff and background cutoff: ', self.maximum_cutoff, self.background_cutoff)
+        ii = Data_processing.cutoff_intensity(ii, cutoff_low = self.background_cutoff, cutoff_high = self.maximum_cutoff)
+        ii = Data_processing.normalize_image(ii, normalize_factor = 'equation', image_max = self.maximum_cutoff, image_min = self.background_cutoff , invert = False)
+        # print('after normalization, min and max value: ', np.min(ii), np.max(ii))
 
         if ii.shape[0] != self.image_size[0] or ii.shape[1] != self.image_size[1]:
             ii = Data_processing.crop_or_pad(ii, [self.image_size[0], self.image_size[1], ii.shape[2]], value= np.min(ii))
