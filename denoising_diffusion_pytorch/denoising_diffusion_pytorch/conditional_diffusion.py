@@ -1365,13 +1365,13 @@ class Sampler(object):
         self.generator = generator
         dl = DataLoader(self.generator, batch_size = self.batch_size, shuffle = False, pin_memory = True, num_workers = 0)# cpu_count())
         
-        self.histogram_equalization = self.generator.histogram_equalization
+        self.histogram_equalization = self.generator.histogram_equalization if hasattr(self.generator, 'histogram_equalization') else False
         print('histogram equalization: ', self.histogram_equalization)
-        self.bins = self.generator.bins
-        self.bins_mapped = self.generator.bins_mapped      
-        self.background_cutoff = self.generator.background_cutoff
-        self.maximum_cutoff = self.generator.maximum_cutoff
-        self.normalize_factor = self.generator.normalize_factor
+        self.bins = self.generator.bins if hasattr(self.generator, 'bins') else None
+        self.bins_mapped = self.generator.bins_mapped if hasattr(self.generator, 'bins_mapped') else None
+        self.background_cutoff = self.generator.background_cutoff if hasattr(self.generator, 'background_cutoff') else None
+        self.maximum_cutoff = self.generator.maximum_cutoff if hasattr(self.generator, 'maximum_cutoff') else None
+        self.normalize_factor = self.generator.normalize_factor if hasattr(self.generator, 'normalize_factor') else None
 
         self.dl = dl
         self.cycle_dl = cycle(dl)
@@ -1391,7 +1391,7 @@ class Sampler(object):
         self.ema.load_state_dict(data["ema"])
 
 
-    def sample_2D(self, trained_model_filename, condition_img, direct_use_of_model = False):
+    def sample_2D(self, trained_model_filename, condition_img, direct_use_of_model = False, modality = 'CT'):
         
         background_cutoff = self.background_cutoff; maximum_cutoff = self.maximum_cutoff; normalize_factor = self.normalize_factor
         if direct_use_of_model == False:
@@ -1419,12 +1419,16 @@ class Sampler(object):
                
                 pred_img[:,:,z_slice] = pred_img_slice
 
-        
-        pred_img = Data_processing.crop_or_pad(pred_img, [condition_img.shape[0], condition_img.shape[1],condition_img.shape[-1]], value = np.min(condition_img))
-        pred_img = Data_processing.normalize_image(pred_img, normalize_factor = normalize_factor, image_max = maximum_cutoff, image_min = background_cutoff, invert = True)
-        if self.histogram_equalization:
-            pred_img = Data_processing.apply_transfer_to_img(pred_img, self.bins, self.bins_mapped,reverse = True)
-        pred_img = Data_processing.correct_shift_caused_in_pad_crop_loop(pred_img)
-        # print('final image shape: ', pred_img.shape)
+        if modality == 'CT':
+            pred_img = Data_processing.crop_or_pad(pred_img, [condition_img.shape[0], condition_img.shape[1],condition_img.shape[-1]], value = np.min(condition_img))
+            pred_img = Data_processing.normalize_image(pred_img, normalize_factor = normalize_factor, image_max = maximum_cutoff, image_min = background_cutoff, invert = True)
+            if self.histogram_equalization:
+                pred_img = Data_processing.apply_transfer_to_img(pred_img, self.bins, self.bins_mapped,reverse = True)
+            pred_img = Data_processing.correct_shift_caused_in_pad_crop_loop(pred_img)
+        elif modality == 'MR':
+            maximum_cutoff = np.percentile(condition_img,99.0)#np.max(condition_img)
+            background_cutoff = np.percentile(condition_img,1.0)#np.min(condition_img)
+            pred_img = Data_processing.normalize_image(pred_img, normalize_factor = 'equation', image_max = maximum_cutoff, image_min = background_cutoff ,  invert = True)
+      
       
         return pred_img
