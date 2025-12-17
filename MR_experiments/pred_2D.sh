@@ -16,7 +16,7 @@ RANGE="all"
 # =======================================
 
 # list of epochs you want to run
-EPOCH_LIST=(150)
+EPOCH_LIST=(150 175 220 115)
 
 # loop through epochs
 for EPOCH in "${EPOCH_LIST[@]}"; do

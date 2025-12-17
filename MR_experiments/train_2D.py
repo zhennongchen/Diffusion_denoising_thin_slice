@@ -85,8 +85,8 @@ diffusion_model = ddpm.GaussianDiffusion(
 # ######Define data generator
 # # first we define the x0 and condition list 
 if supervision == 'supervised':
-    x0_list_train,condition_list_train = gt_file_list_train,noise_file_all_list_train
-    x0_list_val, condition_list_val = gt_file_list_val, noise_file_all_list_val
+    x0_list_train,condition_list_train = gt_file_list_train,noise_file_odd_list_train
+    x0_list_val, condition_list_val = gt_file_list_val, noise_file_odd_list_val
 elif supervision == 'unsupervised':
     x0_list_train, condition_list_train = noise_file_even_list_train, noise_file_odd_list_train
     x0_list_val, condition_list_val = noise_file_even_list_val, noise_file_odd_list_val
