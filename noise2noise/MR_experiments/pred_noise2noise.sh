@@ -9,14 +9,13 @@
 # echo "Finished all jobs"
 
 # # ============ USER SETTINGS ============
-TRIAL="noise2noise_simple_gaussian"
+TRIAL="noise2noise_simple_MR"
 INPUT="both"   # or: odd / even / both / all
-RANGE="100-200"
-NOISETYPE="gaussian"  # or: gaussian
+RANGE="all"
 # =======================================
 
 # list of epochs you want to run
-EPOCH_LIST=(10 30 50 70 90 100 120)
+EPOCH_LIST=(85)
 
 # loop through epochs
 for EPOCH in "${EPOCH_LIST[@]}"; do
@@ -26,8 +25,7 @@ for EPOCH in "${EPOCH_LIST[@]}"; do
         --trial_name $TRIAL \
         --epoch $EPOCH \
         --input $INPUT \
-        --slice_range $RANGE \
-        --noise_type $NOISETYPE
+        --slice_range $RANGE 
 done
 
 echo "Finished all jobs."

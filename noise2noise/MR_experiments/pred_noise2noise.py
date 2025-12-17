@@ -8,7 +8,7 @@ import nibabel as nb
 import Diffusion_denoising_thin_slice.noise2noise.model as noise2noise
 import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
-import Diffusion_denoising_thin_slice.Generator as Generator
+import Diffusion_denoising_thin_slice.Generator_MR as Generator_MR
 
 
 
@@ -28,9 +28,6 @@ def get_args_parser():
     
     parser.add_argument('--slice_range', type=str, default="all",
                         help='slice range such as 100-200 or None for all slices')
-
-    parser.add_argument('--noise_type', type=str, default='gaussian', choices=['gaussian', 'poisson'],
-                        help='type of noise added in the simulation')
         
 
     return parser
@@ -41,7 +38,6 @@ def run(args):
     trial_name = args.trial_name
     epoch = args.epoch
     input_condition = args.input  #'both', 'odd', 'even', 'all'
-    print('noise type:', args.noise_type)
 
     study_folder = '/host/d/projects/denoising/models'
 
@@ -50,17 +46,14 @@ def run(args):
     
     os.makedirs(save_folder, exist_ok=True)
 
-    image_size = [512,512]
+    image_size = [640,320]
 
     histogram_equalization = False
-    background_cutoff = -1000
-    maximum_cutoff = 2000
-    normalize_factor = 1000
+    background_cutoff = 2.5e-06
+    maximum_cutoff = 0.00015
+    normalize_factor = 'equation'
     #######################
-    if args.noise_type == 'gaussian':
-        build_sheet =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v2.xlsx'))
-    elif args.noise_type == 'poisson':
-        build_sheet =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_poisson_simulation_v2.xlsx'))
+    build_sheet =  Build_list.Build(os.path.join('/host/d/Data/NYU_MR/Patient_lists/NYU_MR_simulation.xlsx'))
     batch_list, patient_id_list, random_num_list, noise_file_all_list, noise_file_odd_list, noise_file_even_list, ground_truth_file_list, slice_num_list = build_sheet.__build__(batch_list = ['test'])
     print('example of noise file all:', noise_file_all_list[0])
     n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 1)
@@ -85,7 +78,7 @@ def run(args):
     )
 
     # main
-    G = Generator.Dataset_2D
+    G = Generator_MR.Dataset_2D
     for i in range(0,n.shape[0]):
         patient_id = patient_id_list[n[i]]
         random_num = random_num_list[n[i]]
@@ -113,6 +106,7 @@ def run(args):
         # get the condition image (noise odd)
         affine = nb.load(condition_files[0]).affine
         condition_img = nb.load(condition_files[0]).get_fdata()
+        condition_img = np.transpose(condition_img, (1,2,0))
         if args.slice_range != "all":
             slice_start, slice_end = args.slice_range.split('-')
             slice_start, slice_end = int(slice_start), int(slice_end)
@@ -125,6 +119,7 @@ def run(args):
 
         # get ground truth image
         gt_img = nb.load(gt_file).get_fdata()[:,:,slice_start:slice_end]
+        gt_img = np.transpose(gt_img, (1,2,0))
 
         # make folders
         save_folder_case = os.path.join(save_folder, patient_id, 'random_' + str(random_num), 'epoch' + str(epoch))
@@ -147,13 +142,11 @@ def run(args):
                 condition_list = np.array([condition_file]),
                 image_size = image_size,
 
-                num_slices_per_image = 100,#slice_num, 
+                num_slices_per_image = slice_num,
                 random_pick_slice = False,
-                slice_range = [100,200],# None,
+                slice_range =None,
                 
                 histogram_equalization = histogram_equalization,
-                bins = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_lowdoseCT.npy'),
-                bins_mapped = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped_lowdoseCT.npy'),
                 background_cutoff = background_cutoff,
                 maximum_cutoff = maximum_cutoff,
                 normalize_factor = normalize_factor,)
@@ -163,6 +156,7 @@ def run(args):
 
             pred_img = sampler.sample_2D(trained_model_filename, condition_img)
             print(pred_img.shape)
+            pred_img = np.transpose(pred_img, (2,0,1))
         
             # save
             if len(condition_files) == 1:

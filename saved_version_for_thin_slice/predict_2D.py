@@ -15,7 +15,7 @@ trial_name = 'unsupervised_gaussian_brainCT'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
-epoch = 4760
+epoch = 72
 trained_model_filename = os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-' + str(epoch)+ '.pt')
 if os.path.isfile(trained_model_filename) ==0:
     print('no model')
@@ -44,7 +44,7 @@ do_pred_or_avg = 'pred'
 
 ###########
 build_sheet =  Build_list.Build(os.path.join('/host/d/Data/brain_CT/Patient_lists/fixedCT_static_simulation_train_test_gaussian_xjtlu.xlsx'))
-_,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [0]) 
+_,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [5]) 
 print('total cases:', patient_id_list.shape[0])
 n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 2)
 print('total number:', n.shape[0])
@@ -55,7 +55,7 @@ model = ddpm.Unet(
     init_dim = 64,
     out_dim = 1,
     channels = 1, 
-    conditional_diffusion = True,
+    conditional_diffusion = False,
     condition_channels = condition_channel,
 
     downsample_list = (True, True, True, False),

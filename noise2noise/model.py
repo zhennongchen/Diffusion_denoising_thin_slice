@@ -854,13 +854,12 @@ class Sampler(object):
         # dataset and dataloader
         self.generator = generator
         dl = DataLoader(self.generator, batch_size = self.batch_size, shuffle = False, pin_memory = True, num_workers = 0)# cpu_count())
-        self.histogram_equalization = self.generator.histogram_equalization
-        print('histogram equalization: ', self.histogram_equalization)
-        self.bins = self.generator.bins
-        self.bins_mapped = self.generator.bins_mapped 
-        self.background_cutoff = self.generator.background_cutoff
-        self.maximum_cutoff = self.generator.maximum_cutoff
-        self.normalize_factor = self.generator.normalize_factor
+        self.histogram_equalization = self.generator.histogram_equalization if hasattr(self.generator, 'histogram_equalization') else False
+        self.bins = self.generator.bins if hasattr(self.generator, 'bins') else None
+        self.bins_mapped = self.generator.bins_mapped if hasattr(self.generator, 'bins_mapped') else None
+        self.background_cutoff = self.generator.background_cutoff if hasattr(self.generator, 'background_cutoff') else None
+        self.maximum_cutoff = self.generator.maximum_cutoff if hasattr(self.generator, 'maximum_cutoff') else None
+        self.normalize_factor = self.generator.normalize_factor if hasattr(self.generator, 'normalize_factor') else None
 
         self.dl = dl
         self.cycle_dl = cycle(dl)
