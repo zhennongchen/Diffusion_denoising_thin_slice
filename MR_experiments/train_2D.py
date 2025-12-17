@@ -10,7 +10,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator_MR as Generator_MR
 
-trial_name = 'unsupervised_MR_2'
+trial_name = 'supervised_MR'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'
 
@@ -26,8 +26,8 @@ condition_channel = 1
 train_batch_size = 3
 objective = 'pred_x0' #if 'noise' not in trial_name else 'pred_noise'
 
-pre_trained_model =  None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-216.pt') #None
-start_step = 0#216
+pre_trained_model =  None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-185.pt') #None
+start_step = 0
 
 # image condition
 image_size = [640,320]
@@ -41,7 +41,10 @@ normalize_factor = 'equation'
 
 ######Patient list
 # define train
-build_sheet =  Build_list.Build(os.path.join('/host/d/Data/NYU_MR/Patient_lists/NYU_MR_simulation.xlsx'))
+if supervision == 'supervised':
+    build_sheet =  Build_list.Build(os.path.join('/host/d/Data/NYU_MR/Patient_lists/NYU_MR_simulation_undersample4.xlsx'))
+else:
+    build_sheet =  Build_list.Build(os.path.join('/host/d/Data/NYU_MR/Patient_lists/NYU_MR_simulation.xlsx'))
 
 # define train patient list
 _, _, _, noise_file_all_list_train, noise_file_odd_list_train, noise_file_even_list_train, gt_file_list_train, slice_num_list_train = build_sheet.__build__(batch_list = ['train']) 
@@ -82,9 +85,8 @@ diffusion_model = ddpm.GaussianDiffusion(
 # ######Define data generator
 # # first we define the x0 and condition list 
 if supervision == 'supervised':
-    print('no supervised training for now')
-    # x0_list_train,condition_list_train = gt_file_list_train,noise_file_all_list_train
-    # x0_list_val, condition_list_val = gt_file_list_val, noise_file_all_list_val
+    x0_list_train,condition_list_train = gt_file_list_train,noise_file_all_list_train
+    x0_list_val, condition_list_val = gt_file_list_val, noise_file_all_list_val
 elif supervision == 'unsupervised':
     x0_list_train, condition_list_train = noise_file_even_list_train, noise_file_odd_list_train
     x0_list_val, condition_list_val = noise_file_even_list_val, noise_file_odd_list_val

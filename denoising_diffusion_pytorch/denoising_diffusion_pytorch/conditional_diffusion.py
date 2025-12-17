@@ -1392,6 +1392,8 @@ class Sampler(object):
 
 
     def sample_2D(self, trained_model_filename, condition_img, direct_use_of_model = False, modality = 'CT'):
+
+        print('in sample_2D function, condition img shape: ', condition_img.shape)
         
         background_cutoff = self.background_cutoff; maximum_cutoff = self.maximum_cutoff; normalize_factor = self.normalize_factor
         if direct_use_of_model == False:
@@ -1409,6 +1411,7 @@ class Sampler(object):
         with torch.inference_mode():
             
             for z_slice in range(0,condition_img.shape[-1]):
+                print('now is z-slice: ', z_slice + 1, ' / ', condition_img.shape[-1])
                 datas = next(self.cycle_dl)
                 data_condition = datas[1]
                     

@@ -119,7 +119,7 @@ def run(args):
             slice_start, slice_end = 0, condition_img.shape[2]
         condition_img = condition_img[:,:,slice_start:slice_end]
             
-        slice_num = condition_img.shape[2]; print('slice num:', slice_num)
+        slice_num = condition_img.shape[2]
 
         # get ground truth image
         gt_img = nb.load(gt_file).get_fdata()
@@ -139,6 +139,7 @@ def run(args):
                 if os.path.isfile(os.path.join(save_folder_case, 'pred_img.nii.gz')):
                     print('already done')
                     continue
+
                 
                 for condition_i in range(0,len(condition_files)):
 
@@ -179,9 +180,9 @@ def run(args):
                     pred_img_final = np.zeros([len(condition_files), pred_img.shape[0], pred_img.shape[1], pred_img.shape[2]])
                     for condition_i in range(0,len(condition_files)):
                         pred_img_final[condition_i,:,:,:] = nb.load(os.path.join(save_folder_case, 'pred_img_' + condition_names[condition_i] + '.nii.gz')).get_fdata()
-                        if iteration > 1:
-                            # remove single condition files to save space
-                            os.remove(os.path.join(save_folder_case, 'pred_img_' + condition_names[condition_i] + '.nii.gz'))
+                        # if iteration > 1:
+                        #     # remove single condition files to save space
+                        #     os.remove(os.path.join(save_folder_case, 'pred_img_' + condition_names[condition_i] + '.nii.gz'))
                     # average the two conditions
                     pred_img_final = np.mean(pred_img_final, axis = 0)
                     assert pred_img_final.shape == pred_img.shape
@@ -189,9 +190,8 @@ def run(args):
 
 
                 if iteration == 1:
-                    gt_img = np.transpose(gt_img, (2,0,1)); condition_img = np.transpose(condition_img, (2,0,1))
-                    nb.save(nb.Nifti1Image(gt_img, affine), os.path.join(save_folder_case, 'gt_img.nii.gz'))
-                    nb.save(nb.Nifti1Image(condition_img, affine), os.path.join(save_folder_case, 'condition_img.nii.gz'))
+                    nb.save(nb.Nifti1Image(np.transpose(np.copy(gt_img), (2,0,1)), affine), os.path.join(save_folder_case, 'gt_img.nii.gz'))
+                    nb.save(nb.Nifti1Image(np.transpose(np.copy(condition_img), (2,0,1)), affine), os.path.join(save_folder_case, 'condition_img.nii.gz'))
         
 
         if do_pred_or_avg == 'avg':
