@@ -95,6 +95,7 @@ print('example x0 val file:', x0_list_val[0], '; example condition file:', condi
 
 # preload_data if needed
 if preload  == True:
+    print('loading!!')
     x0_data_train, condition_data_train = ff.preload_data(x0_list_train, transpose = True), ff.preload_data(condition_list_train, transpose = True)
     x0_data_val, condition_data_val = ff.preload_data(x0_list_val,transpose = True), ff.preload_data(condition_list_val, transpose = True)
 
