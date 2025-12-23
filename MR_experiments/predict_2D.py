@@ -89,7 +89,7 @@ def run(args):
 
 
     G =  Generator_MR.Dataset_2D
-    for i in range(0,n.shape[0]):
+    for i in range(0,5):#n.shape[0]):
         patient_id, random_num,noise_file_all, noise_file_odd, noise_file_even, gt_file = patient_id_list[n[i]], random_num_list[n[i]], noise_file_all_list[n[i]], noise_file_odd_list[n[i]], noise_file_even_list[n[i]], ground_truth_file_list[n[i]]
         
         if input_condition == 'both':
@@ -125,7 +125,7 @@ def run(args):
         gt_img = gt_img[:,:,slice_start:slice_end]
 
         if do_pred_or_avg == 'pred':
-            iteration_num = 20 if supervision == 'unsupervised' else 1
+            iteration_num = 10 if supervision == 'unsupervised' else 1
 
             for iteration in range(1,iteration_num + 1):
                 print('iteration:', iteration)

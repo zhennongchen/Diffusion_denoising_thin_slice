@@ -26,8 +26,8 @@ condition_channel = 1
 train_batch_size = 3
 objective = 'pred_x0' #if 'noise' not in trial_name else 'pred_noise'
 
-pre_trained_model =  os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-100.pt') #None
-start_step = 100
+pre_trained_model =  os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-225.pt') #None
+start_step = 225
 
 # image condition
 image_size = [640,320]
@@ -42,7 +42,7 @@ normalize_factor = 'equation'
 ######Patient list
 # define train
 if supervision == 'supervised':
-    build_sheet =  Build_list.Build(os.path.join('/host/d/Data/NYU_MR/Patient_lists/NYU_MR_simulation_undersample4.xlsx'))
+    build_sheet =  Build_list.Build(os.path.join('/host/d/Data/NYU_MR/Patient_lists/NYU_MR_simulation_undersample4_equispaced.xlsx'))
 else:
     build_sheet =  Build_list.Build(os.path.join('/host/d/Data/NYU_MR/Patient_lists/NYU_MR_simulation.xlsx'))
 
@@ -160,13 +160,13 @@ trainer = ddpm.Trainer(
     train_batch_size = train_batch_size,
     
     accum_iter = 1,
-    train_num_steps = 200, # total training epochs
+    train_num_steps = 1000, # total training epochs
     results_folder = save_models_folder,
    
     train_lr = 1e-4,
     train_lr_decay_every = 200, 
-    save_models_every = 5,
-    validation_every = 5,)
+    save_models_every = 10,
+    validation_every = 10,)
 
 
 trainer.train(pre_trained_model=pre_trained_model, start_step= start_step, beta = beta, lpips_weight = lpips_weight, edge_weight = edge_weight)
