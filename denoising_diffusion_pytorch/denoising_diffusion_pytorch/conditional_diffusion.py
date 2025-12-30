@@ -1390,7 +1390,7 @@ class Sampler(object):
         self.ema.load_state_dict(data["ema"])
 
 
-    def sample_2D(self, trained_model_filename, condition_img, direct_use_of_model = False, modality = 'CT'):
+    def sample_2D(self, trained_model_filename, condition_img, direct_use_of_model = False, need_change_dim =True, need_denormalize = True):
         
         background_cutoff = self.background_cutoff; maximum_cutoff = self.maximum_cutoff; normalize_factor = self.normalize_factor
         if direct_use_of_model == False:
@@ -1419,12 +1419,13 @@ class Sampler(object):
                
                 pred_img[:,:,z_slice] = pred_img_slice
 
-        if modality == 'CT':
+        if need_change_dim == 'True':
             pred_img = Data_processing.crop_or_pad(pred_img, [condition_img.shape[0], condition_img.shape[1],condition_img.shape[-1]], value = np.min(condition_img))
-        pred_img = Data_processing.normalize_image(pred_img, normalize_factor = normalize_factor, image_max = maximum_cutoff, image_min = background_cutoff, invert = True)
+        if need_denormalize == 'True':
+            pred_img = Data_processing.normalize_image(pred_img, normalize_factor = normalize_factor, image_max = maximum_cutoff, image_min = background_cutoff, invert = True)
         if self.histogram_equalization:
             pred_img = Data_processing.apply_transfer_to_img(pred_img, self.bins, self.bins_mapped,reverse = True)
-        if modality == 'CT':
+        if need_change_dim == 'True':
             pred_img = Data_processing.correct_shift_caused_in_pad_crop_loop(pred_img)
       
         return pred_img

@@ -48,6 +48,8 @@ def run(args):
     histogram_equalization = False
     background_cutoff =  0
     maximum_cutoff = 1
+    final_max = 1
+    final_min = 0
     normalize_factor = 'equation'
 
     ###########
@@ -68,7 +70,6 @@ def run(args):
         downsample_list = (True, True, True, False),
         upsample_list = (True, True, True, False),
         full_attn = (None, None, False, True),)
-
 
     G =  Generator_EM.Dataset_2D
     for i in range(0,2):#n.shape[0]):
@@ -115,7 +116,7 @@ def run(args):
             auto_normalize=False,
             objective = objective,
             clip_or_not = True, 
-            clip_range = [-1,1], )
+            clip_range = [final_min, final_max],)
 
         if do_pred_or_avg == 'pred':
             iteration_num = 20 if supervision == 'unsupervised' else 1
@@ -145,12 +146,14 @@ def run(args):
 
                     background_cutoff = background_cutoff, 
                     maximum_cutoff = maximum_cutoff,
-                    normalize_factor = normalize_factor,)
+                    normalize_factor = normalize_factor,
+                    final_max = final_max,
+                    final_min = final_min,)
 
                 #sample:
                 sampler = ddpm.Sampler(diffusion_model,generator,batch_size = 1)
 
-                pred_img = sampler.sample_2D(trained_model_filename, condition_img, modality = 'CT')
+                pred_img = sampler.sample_2D(trained_model_filename, condition_img, need_change_dim = True, need_denormalize = False)
                 print('pred_img shape:', pred_img.shape)
         
                 # save
