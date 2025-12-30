@@ -7,7 +7,7 @@ import nibabel as nb
 import Diffusion_denoising_thin_slice.Thinslice_experiments.denoising_diffusion_pytorch.denoising_diffusion_pytorch.conditional_diffusion as ddpm
 import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
-import Diffusion_denoising_thin_slice.Generator_thinslice as Generator
+import Diffusion_denoising_thin_slice.Generator_thinslice as Generator 
 
 ###########
 trial_name = 'unsupervised_gaussian_brainCT'
@@ -116,6 +116,8 @@ for i in range(0,n.shape[0]):
                 slice_range = [30,80],
 
                 histogram_equalization = histogram_equalization,
+                bins = np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins.npy'),
+                bins_mapped = np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped.npy'),
                 background_cutoff = background_cutoff,
                 maximum_cutoff = maximum_cutoff,
                 normalize_factor = normalize_factor,)

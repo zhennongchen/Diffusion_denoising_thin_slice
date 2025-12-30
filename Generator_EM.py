@@ -152,12 +152,13 @@ class Dataset_2D(Dataset):
 
         # cutoff and normalization
         ii = Data_processing.cutoff_intensity(ii,cutoff_low = self.background_cutoff, cutoff_high = self.maximum_cutoff)
-        if self.final_max != 1 and self.final_min != 0:
+
+        if self.final_max != 1 or self.final_min != 0:
             ii = Data_processing.normalize_image(ii, normalize_factor = self.normalize_factor, image_max = self.maximum_cutoff, image_min = self.background_cutoff ,final_max = self.final_max, final_min = self.final_min, invert = False)
         if self.image_size is not None: 
             if ii.shape[0] != self.image_size[0] or ii.shape[1] != self.image_size[1]:
                 ii = Data_processing.crop_or_pad(ii, [self.image_size[0], self.image_size[1], ii.shape[2]], value= np.min(ii))
-     
+        print('max and min after normalization:', np.max(ii), np.min(ii))
         return ii
         
     def __getitem__(self, index):

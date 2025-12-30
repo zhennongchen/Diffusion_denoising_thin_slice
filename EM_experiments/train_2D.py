@@ -157,7 +157,7 @@ trainer = ddpm.Trainer(
     train_batch_size = train_batch_size,
     
     accum_iter = 1,
-    train_num_steps = 1000, # total training epochs
+    train_num_steps = 100, # total training epochs
     results_folder = save_models_folder,
    
     train_lr = 1e-4,

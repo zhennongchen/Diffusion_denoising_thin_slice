@@ -23,6 +23,9 @@ def get_args_parser():
     parser.add_argument('--mode', type=str, required = True, 
                         help='predict mode: avg or pred')
     
+    parser.add_argument('--finalmax_finalmin', type=str, default="1_-1",
+                        help='final max and min values for clipping, such as 1_-1')
+    
     parser.add_argument('--slice_range', type=str, default="all",
                         help='slice range such as 100-200 or None for all slices')
         
@@ -48,8 +51,10 @@ def run(args):
     histogram_equalization = False
     background_cutoff =  0
     maximum_cutoff = 1
-    final_max = 1
-    final_min = 0
+    final_max = args.finalmax_finalmin.split('_')[0]
+    final_max = int(final_max)
+    final_min = args.finalmax_finalmin.split('_')[1]
+    final_min = int(final_min)
     normalize_factor = 'equation'
 
     ###########
@@ -119,7 +124,7 @@ def run(args):
             clip_range = [final_min, final_max],)
 
         if do_pred_or_avg == 'pred':
-            iteration_num = 20 if supervision == 'unsupervised' else 1
+            iteration_num = 40 if supervision == 'unsupervised' else 1
 
             for iteration in range(1,iteration_num + 1):
                 print('iteration:', iteration)
@@ -152,9 +157,8 @@ def run(args):
 
                 #sample:
                 sampler = ddpm.Sampler(diffusion_model,generator,batch_size = 1)
-
-                pred_img = sampler.sample_2D(trained_model_filename, condition_img, need_change_dim = True, need_denormalize = False)
-                print('pred_img shape:', pred_img.shape)
+                need_denormalize = False if final_min == 0 else True
+                pred_img = sampler.sample_2D(trained_model_filename, condition_img, need_change_dim = True, need_denormalize = need_denormalize)
         
                 # save
                 nb.save(nb.Nifti1Image(pred_img, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))

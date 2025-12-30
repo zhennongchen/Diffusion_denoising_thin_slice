@@ -46,6 +46,8 @@ def run(args):
     background_cutoff = 0
     maximum_cutoff = 1
     normalize_factor = 'equation'
+    final_max = 1
+    final_min = 0
 
     #######################
     build_sheet =  Build_list.Build_EM(os.path.join('/host/d/Data/minnie_EM/Patient_lists/minnie_EM_split_gaussian_simulation_v1.xlsx'))
@@ -108,39 +110,38 @@ def run(args):
         save_folder_case = os.path.join(save_folder, patient_id, 'epoch' + str(epoch))
         ff.make_folder([os.path.join(save_folder, patient_id), save_folder_case])
 
-        if os.path.isfile(os.path.join(save_folder_case, 'pred_img.nii.gz')):
-            print('already done')
-            continue
+        # if os.path.isfile(os.path.join(save_folder_case, 'pred_img.nii.gz')):
+        #     print('already done')
+        #     continue
                 
-        for condition_i in range(0,len(condition_files)):
 
-            condition_file = condition_files[condition_i]
-            print('condition file:', condition_file)
+        # generator
+        generator = G(
+            gt_file_list = np.asarray([simulation_file_2]), # this is dummy, not used in inference
+            simulation_1_file_list = np.asarray([simulation_file_2]), # this is dummy, not used in inference
+            simulation_2_file_list = np.asarray([simulation_file_2]),
 
-            # generator
-             generator = G(
-                    gt_file_list = np.asarray([simulation_file_2]), # this is dummy, not used in inference
-                    simulation_1_file_list = np.asarray([simulation_file_2]), # this is dummy, not used in inference
-                    simulation_2_file_list = np.asarray([simulation_file_2]),
+            image_size = [target_x_shape, target_y_shape],
 
-                    image_size = [target_x_shape, target_y_shape],
+            num_slices_per_image = slice_num,
+            random_pick_slice = False,
+            slice_range = None if args.slice_range is None else [slice_start, slice_end],
 
-                    num_slices_per_image = slice_num,
-                    random_pick_slice = False,
-                    slice_range = None if args.slice_range is None else [slice_start, slice_end],
-
-                    background_cutoff = background_cutoff, 
-                    maximum_cutoff = maximum_cutoff,
-                    normalize_factor = normalize_factor,)
+            background_cutoff = background_cutoff, 
+            maximum_cutoff = maximum_cutoff,
+            normalize_factor = normalize_factor,
+            final_max = final_max,
+            final_min = final_min,)
 
 
-            # sample:
-            sampler = noise2noise.Sampler(model,generator,batch_size = 1, image_size = image_size)
+        # sample:
+        sampler = noise2noise.Sampler(model,generator,batch_size = 1, image_size = image_size)
+        need_denormalize = False if final_min == 0 else True
+        pred_img = sampler.sample_2D(trained_model_filename, condition_img, need_denormalize = need_denormalize)
 
-            pred_img = sampler.sample_2D(trained_model_filename, condition_img)
-            print(pred_img.shape)
+        print(pred_img.shape)
 
-            nb.save(nb.Nifti1Image(pred_img, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
+        nb.save(nb.Nifti1Image(pred_img, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
 
 if __name__ == '__main__':
     args = get_args_parser()

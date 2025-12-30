@@ -389,41 +389,29 @@ class ResnetBlock3D(nn.Module):
 
         return h + self.res_conv(x)
     
-class Unet(nn.Module):
+    
+class Unet2D(nn.Module):
     def __init__(
         self,
-        problem_dimension = '2D',  # '2D' or '3D'
-  
-        input_channels = 1,
-        out_channels = 1,  
+        init_dim = 16,
+        channels = 1,
 
-        initial_dim = 64,  # initial feature dimension after first conv layer
+        out_dim = None,
         dim_mults = (2,4,8,16),
-        groups = 4,
-      
+        self_condition = False,   # use the prediction from the previous iteration as the condition of next iteration
         attn_dim_head = 32,
         attn_heads = 4,
-        full_attn_paths = (None, None, None, True), # these are for downsampling and upsampling paths
-        full_attn_bottleneck = None, # this is for the middle bottleneck layer
+        full_attn = (None, None, None, True),
         act = 'ReLU',
     ):
         super().__init__()
+    
+        self.channels = channels
+        input_channels = channels
 
-        self.input_channels = input_channels
-        self.out_channels = out_channels
-        self.problem_dimension = problem_dimension
-        self.groups = groups
+        self.init_conv = nn.Conv2d(input_channels, init_dim, 3, padding = 1) # if want input and output to have same dimension, Kernel size to any odd number (e.g., 3, 5, 7, etc.). Padding to (kernel size - 1) / 2.
 
-        conv_layer = nn.Conv2d if self.problem_dimension == '2D' else nn.Conv3d
-        ResnetBlock = ResnetBlock2D if self.problem_dimension == '2D' else ResnetBlock3D
-        Attention = Attention2D if self.problem_dimension == '2D' else Attention3D
-        LinearAttention = LinearAttention2D if self.problem_dimension == '2D' else LinearAttention3D
-        downsample_layer = Downsample2D if self.problem_dimension == '2D' else Downsample3D
-        upsample_layer = Upsample2D if self.problem_dimension == '2D' else Upsample3D
-
-        self.init_conv = conv_layer(self.input_channels, initial_dim, 3, padding = 1) # if want input and output to have same dimension, Kernel size to any odd number (e.g., 3, 5, 7, etc.). Padding to (kernel size - 1) / 2.
-
-        dims = [initial_dim, *map(lambda m: initial_dim * m, dim_mults)]  # if initi_dim = 16, then [16, 32, 64, 128, 256]
+        dims = [init_dim, *map(lambda m: init_dim * m, dim_mults)]  # if initi_dim = 16, then [16, 32, 64, 128, 256]
 
         in_out = list(zip(dims[:-1], dims[1:])) 
         print('in out is : ', in_out)
@@ -431,8 +419,7 @@ class Unet(nn.Module):
 
         # attention
         num_stages = len(dim_mults)
-        full_attn  = cast_tuple(full_attn_paths, num_stages)
-        self.full_attn_bottleneck = full_attn_bottleneck
+        full_attn  = cast_tuple(full_attn, num_stages)
         attn_heads = cast_tuple(attn_heads, num_stages)
         attn_dim_head = cast_tuple(attn_dim_head, num_stages)
 
@@ -451,12 +438,12 @@ class Unet(nn.Module):
             # in each downsample stage, 
             # we have a resnetblock and then downsampling layer (downsample x and y by 2, then increase the feature number by 2)
             self.downs.append(nn.ModuleList([
-                ResnetBlock(dim_in, dim_in, use_full_attention = layer_full_attn, attn_head = layer_attn_heads, attn_dim_head = layer_attn_dim_head, act = act, groups = self.groups),
-                downsample_layer(dim_in, dim_out) if not is_last else conv_layer(dim_in, dim_out, 3, padding = 1)
+                ResnetBlock2D(dim_in, dim_in, use_full_attention = layer_full_attn, attn_head = layer_attn_heads, attn_dim_head = layer_attn_dim_head, act = act),
+                Downsample2D(dim_in, dim_out) if not is_last else nn.Conv2d(dim_in, dim_out, 3, padding = 1)
             ]))
 
         mid_dim = dims[-1]
-        self.mid_block = ResnetBlock(mid_dim, mid_dim, use_full_attention = self.full_attn_bottleneck, attn_head = attn_heads[-1], attn_dim_head = attn_dim_head[-1], act = act, groups = self.groups)
+        self.mid_block = ResnetBlock2D(mid_dim, mid_dim, use_full_attention = True, attn_head = attn_heads[-1], attn_dim_head = attn_dim_head[-1], act = act)
 
         for ind, ((dim_in, dim_out), layer_full_attn, layer_attn_heads, layer_attn_dim_head) in enumerate(zip(*map(reversed, (in_out, full_attn, attn_heads, attn_dim_head)))):
             # print(' in upsampling path, ind is: ', ind, ' dim_in is: ', dim_in, ' dim_out is: ', dim_out, ' layer_full_attn is: ', layer_full_attn, ' layer_attn_heads is: ', layer_attn_heads, ' layer_attn_dim_head is: ', layer_attn_dim_head)
@@ -465,13 +452,13 @@ class Unet(nn.Module):
             # in each upsample stage,
             # we have a resnetblock and then upsampling layer (upsample x and y by 2, then decrease the feature number by 2)
             self.ups.append(nn.ModuleList([
-                ResnetBlock(dim_out + dim_in, dim_out, use_full_attention = layer_full_attn, attn_head = layer_attn_heads, attn_dim_head = layer_attn_dim_head, act = act, groups = self.groups),
-                upsample_layer(dim_out, dim_in) if not is_last else  conv_layer(dim_out, dim_in, 5, padding = 2)  
+                ResnetBlock2D(dim_out + dim_in, dim_out, use_full_attention = layer_full_attn, attn_head = layer_attn_heads, attn_dim_head = layer_attn_dim_head, act = act),
+                Upsample2D(dim_out, dim_in) if not is_last else  nn.Conv2d(dim_out, dim_in, 5, padding = 2)  
             ]))
 
-      
-        self.final_res_block = ResnetBlock(initial_dim * 2, initial_dim, use_full_attention = None, attn_head = attn_heads[0], attn_dim_head = attn_dim_head[0], act = act, groups = self.groups)
-        self.final_conv = conv_layer(initial_dim, self.out_channels, 1) 
+        self.out_dim = out_dim if out_dim is not None else channels
+        self.final_res_block = ResnetBlock2D(init_dim * 2, init_dim, use_full_attention = None, attn_head = attn_heads[0], attn_dim_head = attn_dim_head[0], act = act)
+        self.final_conv = nn.Conv2d(init_dim, self.out_dim, 1)  # output channel is initial channel number
 
     def forward(self, x):
 
@@ -501,107 +488,6 @@ class Unet(nn.Module):
         # print('final image shape is: ', final_image.shape)
       
         return final_image
-
-
-# class Unet2D(nn.Module):
-#     def __init__(
-#         self,
-#         init_dim = 16,
-#         channels = 1,
-
-#         out_dim = None,
-#         dim_mults = (2,4,8,16),
-#         self_condition = False,   # use the prediction from the previous iteration as the condition of next iteration
-#         attn_dim_head = 32,
-#         attn_heads = 4,
-#         full_attn = (None, None, None, True),
-#         bottleneck_attn = True,
-#         act = 'ReLU',
-#     ):
-#         super().__init__()
-    
-#         self.channels = channels
-#         input_channels = channels
-
-#         self.init_conv = nn.Conv2d(input_channels, init_dim, 3, padding = 1) # if want input and output to have same dimension, Kernel size to any odd number (e.g., 3, 5, 7, etc.). Padding to (kernel size - 1) / 2.
-
-#         dims = [init_dim, *map(lambda m: init_dim * m, dim_mults)]  # if initi_dim = 16, then [16, 32, 64, 128, 256]
-
-#         in_out = list(zip(dims[:-1], dims[1:])) 
-#         print('in out is : ', in_out)
-#         # [(16,32), (32,64), (64,128), (128,256)]. Each tuple in in_out represents a pair of input and output dimensions for different stages in a neural network 
-
-#         # attention
-#         num_stages = len(dim_mults)
-#         full_attn  = cast_tuple(full_attn, num_stages)
-#         attn_heads = cast_tuple(attn_heads, num_stages)
-#         attn_dim_head = cast_tuple(attn_dim_head, num_stages)
-
-#         assert len(full_attn) == len(dim_mults)
-
-#         # layers
-
-#         self.downs = nn.ModuleList([])
-#         self.ups = nn.ModuleList([])
-#         num_resolutions = len(in_out) # 4
-
-#         for ind, ((dim_in, dim_out), layer_full_attn, layer_attn_heads, layer_attn_dim_head) in enumerate(zip(in_out, full_attn, attn_heads, attn_dim_head)):
-#             # print(' in downsampling path, ind is: ', ind, ' dim_in is: ', dim_in, ' dim_out is: ', dim_out, ' layer_full_attn is: ', layer_full_attn, ' layer_attn_heads is: ', layer_attn_heads, ' layer_attn_dim_head is: ', layer_attn_dim_head)
-#             is_last = ind >= (num_resolutions - 1)
-
-#             # in each downsample stage, 
-#             # we have a resnetblock and then downsampling layer (downsample x and y by 2, then increase the feature number by 2)
-#             self.downs.append(nn.ModuleList([
-#                 ResnetBlock2D(dim_in, dim_in, use_full_attention = layer_full_attn, attn_head = layer_attn_heads, attn_dim_head = layer_attn_dim_head, act = act),
-#                 Downsample2D(dim_in, dim_out) if not is_last else nn.Conv2d(dim_in, dim_out, 3, padding = 1)
-#             ]))
-
-#         mid_dim = dims[-1]
-#         self.mid_block = ResnetBlock2D(mid_dim, mid_dim, use_full_attention = bottleneck_attn, attn_head = attn_heads[-1], attn_dim_head = attn_dim_head[-1], act = act)
-
-#         for ind, ((dim_in, dim_out), layer_full_attn, layer_attn_heads, layer_attn_dim_head) in enumerate(zip(*map(reversed, (in_out, full_attn, attn_heads, attn_dim_head)))):
-#             # print(' in upsampling path, ind is: ', ind, ' dim_in is: ', dim_in, ' dim_out is: ', dim_out, ' layer_full_attn is: ', layer_full_attn, ' layer_attn_heads is: ', layer_attn_heads, ' layer_attn_dim_head is: ', layer_attn_dim_head)
-#             is_last = ind == (len(in_out) - 1)
-          
-#             # in each upsample stage,
-#             # we have a resnetblock and then upsampling layer (upsample x and y by 2, then decrease the feature number by 2)
-#             self.ups.append(nn.ModuleList([
-#                 ResnetBlock2D(dim_out + dim_in, dim_out, use_full_attention = layer_full_attn, attn_head = layer_attn_heads, attn_dim_head = layer_attn_dim_head, act = act),
-#                 Upsample2D(dim_out, dim_in) if not is_last else  nn.Conv2d(dim_out, dim_in, 5, padding = 2)  
-#             ]))
-
-#         self.out_dim = out_dim if out_dim is not None else channels
-#         self.final_res_block = ResnetBlock2D(init_dim * 2, init_dim, use_full_attention = None, attn_head = attn_heads[0], attn_dim_head = attn_dim_head[0], act = act)
-#         self.final_conv = nn.Conv2d(init_dim, self.out_dim, 1)  # output channel is initial channel number
-
-#     def forward(self, x):
-
-#         x = self.init_conv(x)
-#         # print('initial x shape is: ', x.shape)
-#         x_init = x.clone()
-
-#         h = []
-#         for block, downsample in self.downs:
-#             x = block(x)
-#             h.append(x)
-
-#             x = downsample(x)
-        
-#         x = self.mid_block(x)
-#         # print('middle x shape is: ', x.shape)
-        
-#         for block, upsample in self.ups:
-#             x = torch.cat((x, h.pop()), dim = 1)   # h.pop() is the output of the corresponding downsample stage
-#             x = block(x)
-#             x = upsample(x)
-
-#         x = torch.cat((x, x_init), dim = 1)
-
-#         x = self.final_res_block(x)
-#         final_image = self.final_conv(x)
-#         # print('final image shape is: ', final_image.shape)
-      
-#         return final_image
 
 
 class Trainer(object):
@@ -650,6 +536,8 @@ class Trainer(object):
         #     self.loss_function = F.l1_loss
         # elif self.specify_loss == 'both':
         self.loss_function1 = F.mse_loss; self.loss_function2 = F.l1_loss
+
+        self.channels = model.channels
 
         # sampling and training hyperparameters
         self.batch_size = train_batch_size
@@ -848,18 +736,20 @@ class Sampler(object):
         if device == 'cpu':
             self.device = torch.device("cpu")
 
+        self.channels = model.channels
         self.image_size = image_size
         self.batch_size = batch_size
 
         # dataset and dataloader
         self.generator = generator
         dl = DataLoader(self.generator, batch_size = self.batch_size, shuffle = False, pin_memory = True, num_workers = 0)# cpu_count())
-        self.histogram_equalization = self.generator.histogram_equalization if hasattr(self.generator, 'histogram_equalization') else False
-        self.bins = self.generator.bins if hasattr(self.generator, 'bins') else None
-        self.bins_mapped = self.generator.bins_mapped if hasattr(self.generator, 'bins_mapped') else None
-        self.background_cutoff = self.generator.background_cutoff if hasattr(self.generator, 'background_cutoff') else None
-        self.maximum_cutoff = self.generator.maximum_cutoff if hasattr(self.generator, 'maximum_cutoff') else None
-        self.normalize_factor = self.generator.normalize_factor if hasattr(self.generator, 'normalize_factor') else None
+        self.histogram_equalization = self.generator.histogram_equalization
+        print('histogram equalization: ', self.histogram_equalization)
+        self.bins = generator.bins
+        self.bins_mapped = generator.bins_mapped      
+        self.background_cutoff = self.generator.background_cutoff
+        self.maximum_cutoff = self.generator.maximum_cutoff
+        self.normalize_factor = self.generator.normalize_factor
 
         self.dl = dl
         self.cycle_dl = cycle(dl)
@@ -876,7 +766,7 @@ class Sampler(object):
         self.ema.load_state_dict(data["ema"])
 
     
-    def sample_2D(self, trained_model_filename, gt_img, need_denormalize = True):
+    def sample_2D(self, trained_model_filename, gt_img):
         
         background_cutoff = self.background_cutoff; maximum_cutoff = self.maximum_cutoff; normalize_factor = self.normalize_factor
         self.load_model(trained_model_filename) 
@@ -891,7 +781,7 @@ class Sampler(object):
 
         # start to run
         with torch.inference_mode():
-            print('gt_img shape: ', gt_img.shape)
+            print('reference_img shape: ', gt_img.shape)
             for z_slice in range(0,gt_img.shape[-1]):
                 batch_input, batch_gt = next(self.cycle_dl)
                 data_input = batch_input.to(device)
@@ -903,8 +793,7 @@ class Sampler(object):
 
         
         pred_img = Data_processing.crop_or_pad(pred_img, [gt_img.shape[0], gt_img.shape[1],gt_img.shape[-1]], value = np.min(gt_img))
-        if need_denormalize:
-            pred_img = Data_processing.normalize_image(pred_img, normalize_factor = normalize_factor, image_max = maximum_cutoff, image_min = background_cutoff, invert = True)
+        pred_img = Data_processing.normalize_image(pred_img, normalize_factor = normalize_factor, image_max = maximum_cutoff, image_min = background_cutoff, invert = True)
         if self.histogram_equalization:
             pred_img = Data_processing.apply_transfer_to_img(pred_img, self.bins, self.bins_mapped,reverse = True)
         pred_img = Data_processing.correct_shift_caused_in_pad_crop_loop(pred_img)

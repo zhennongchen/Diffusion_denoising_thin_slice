@@ -12,9 +12,6 @@ from torch.utils.data import Dataset
 import Diffusion_denoising_thin_slice.Data_processing as Data_processing
 import Diffusion_denoising_thin_slice.functions_collection as ff
 
-# histogram equalization pre-saved load
-bins = np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins.npy')
-bins_mapped = np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped.npy')
 
 # random function
 def random_rotate(i, z_rotate_degree = None, z_rotate_range = [-10,10], fill_val = None, order = 1):
@@ -62,6 +59,8 @@ class Dataset_2D(Dataset):
         background_cutoff, 
         maximum_cutoff,
         normalize_factor,
+        bins,
+        bins_mapped,
 
         num_patches_per_slice = None,
         patch_size = None,
@@ -83,6 +82,8 @@ class Dataset_2D(Dataset):
         self.supervision = supervision
 
         self.histogram_equalization = histogram_equalization
+        self.bins = bins
+        self.bins_mapped = bins_mapped
         self.background_cutoff = background_cutoff
         self.maximum_cutoff = maximum_cutoff
         self.normalize_factor = normalize_factor
@@ -132,7 +133,7 @@ class Dataset_2D(Dataset):
     
         # do histogram equalization first
         if self.histogram_equalization == True: 
-            ii = Data_processing.apply_transfer_to_img(ii, bins, bins_mapped)
+            ii = Data_processing.apply_transfer_to_img(ii, self.bins, self.bins_mapped)
         # cutoff and normalization
         ii = Data_processing.cutoff_intensity(ii,cutoff_low = self.background_cutoff, cutoff_high = self.maximum_cutoff)
         ii = Data_processing.normalize_image(ii, normalize_factor = self.normalize_factor, image_max = self.maximum_cutoff, image_min = self.background_cutoff ,invert = False)

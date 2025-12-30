@@ -10,12 +10,13 @@
 
 # # ============ USER SETTINGS ============
 TRIAL="unsupervised_gaussian_EM"
-MODE="avg"   # or: avg
+MODE="pred"   # or: avg
 RANGE="10-15"
+FINALMAX_FINALMIN="1_-1"  # final max and min values for clipping, such as 1_-1
 # =======================================
 
 # list of epochs you want to run
-EPOCH_LIST=(115 85 130)
+EPOCH_LIST=(85 55)
 
 # loop through epochs
 for EPOCH in "${EPOCH_LIST[@]}"; do
@@ -25,7 +26,8 @@ for EPOCH in "${EPOCH_LIST[@]}"; do
         --trial_name $TRIAL \
         --epoch $EPOCH \
         --mode $MODE \
-        --slice_range $RANGE
+        --slice_range $RANGE \
+        --finalmax_finalmin $FINALMAX_FINALMIN
 done
 
 echo "Finished all jobs."

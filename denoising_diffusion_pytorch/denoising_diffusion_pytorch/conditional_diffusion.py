@@ -1418,14 +1418,14 @@ class Sampler(object):
                 pred_img_slice = pred_img_slice.detach().cpu().numpy().squeeze()
                
                 pred_img[:,:,z_slice] = pred_img_slice
-
-        if need_change_dim == 'True':
+        
+        if need_change_dim == True:
             pred_img = Data_processing.crop_or_pad(pred_img, [condition_img.shape[0], condition_img.shape[1],condition_img.shape[-1]], value = np.min(condition_img))
-        if need_denormalize == 'True':
+        if need_denormalize == True:
             pred_img = Data_processing.normalize_image(pred_img, normalize_factor = normalize_factor, image_max = maximum_cutoff, image_min = background_cutoff, invert = True)
         if self.histogram_equalization:
             pred_img = Data_processing.apply_transfer_to_img(pred_img, self.bins, self.bins_mapped,reverse = True)
-        if need_change_dim == 'True':
+        if need_change_dim == True:
             pred_img = Data_processing.correct_shift_caused_in_pad_crop_loop(pred_img)
       
         return pred_img
