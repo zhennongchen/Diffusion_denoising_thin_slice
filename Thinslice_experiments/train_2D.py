@@ -3,11 +3,10 @@ sys.path.append('/host/d/Github')
 import os
 import torch
 import numpy as np 
-import Diffusion_denoising_thin_slice.denoising_diffusion_pytorch.denoising_diffusion_pytorch.conditional_diffusion as ddpm
-import Diffusion_denoising_thin_slice.denoising_diffusion_pytorch.denoising_diffusion_pytorch.conditional_EDM as edm
+import Diffusion_denoising_thin_slice.Thinslice_experiments.denoising_diffusion_pytorch.denoising_diffusion_pytorch.conditional_diffusion as ddpm
 import Diffusion_denoising_thin_slice.functions_collection as ff
-import Diffusion_denoising_thin_slice.saved_version_for_thin_slice.Build_lists.Build_list as Build_list
-import Diffusion_denoising_thin_slice.saved_version_for_thin_slice.Generator as Generator
+import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
+import Diffusion_denoising_thin_slice.Generator_thinslice as Generator
 
 trial_name = 'unsupervised_gaussian_brainCT'
 problem_dimension = '2D'
@@ -39,12 +38,9 @@ normalize_factor = 'equation'
 ###########################
 # define train
 if supervision == 'supervised':
-    build_sheet =  Build_list.Build(os.path.join('/host/d/Data/brain_CT/Patient_lists/fixedCT_static_simulation_train_test_poisson_xjtlu.xlsx'))
-    if 'distilled' in trial_name:
-        print('distilled model')
-        build_sheet =  Build_list.Build(os.path.join('/host/d/Data/brain_CT/Patient_lists/fixedCT_static_distilled_model_train_test_local.xlsx'))
+    build_sheet =  Build_list.Build_thinsliceCT(os.path.join('/host/d/Data/brain_CT/Patient_lists/fixedCT_static_simulation_train_test_poisson_xjtlu.xlsx'))
 else:
-    build_sheet =  Build_list.Build(os.path.join('/host/d/Data/brain_CT/Patient_lists/fixedCT_static_simulation_train_test_gaussian_xjtlu.xlsx'))
+    build_sheet =  Build_list.Build_thinsliceCT(os.path.join('/host/d/Data/brain_CT/Patient_lists/fixedCT_static_simulation_train_test_gaussian_xjtlu.xlsx'))
 
 _,_,_,_, condition_list_train, x0_list_train = build_sheet.__build__(batch_list = [0,1,2,3]) 
 x0_list_train = x0_list_train[0:1]; condition_list_train = condition_list_train[0:1]

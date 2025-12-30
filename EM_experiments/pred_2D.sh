@@ -9,25 +9,23 @@
 # echo "Finished all jobs"
 
 # # ============ USER SETTINGS ============
-TRIAL="noise2noise_mayo"
-INPUT="both"   # or: odd / even / both / all
-RANGE="100-200"
-NOISETYPE="gaussian"  # or: gaussian
+TRIAL="unsupervised_gaussian_EM"
+MODE="avg"   # or: avg
+RANGE="10-15"
 # =======================================
 
 # list of epochs you want to run
-EPOCH_LIST=(70)
+EPOCH_LIST=(115 85 130)
 
 # loop through epochs
 for EPOCH in "${EPOCH_LIST[@]}"; do
     echo "Running epoch $EPOCH ..."
     
-    python3 pred_noise2noise.py \
+    python3 predict_2D.py \
         --trial_name $TRIAL \
         --epoch $EPOCH \
-        --input $INPUT \
-        --slice_range $RANGE \
-        --noise_type $NOISETYPE
+        --mode $MODE \
+        --slice_range $RANGE
 done
 
 echo "Finished all jobs."

@@ -10,7 +10,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator_MR as Generator_MR
 
-trial_name = 'supervised_MR'
+trial_name = 'unsupervised_MR_try2'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'
 
@@ -26,8 +26,8 @@ condition_channel = 1
 train_batch_size = 3
 objective = 'pred_x0' #if 'noise' not in trial_name else 'pred_noise'
 
-pre_trained_model =  os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-225.pt') #None
-start_step = 225
+pre_trained_model =  None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-225.pt') #None
+start_step = 0#225
 
 # image condition
 image_size = [640,320]
@@ -36,7 +36,7 @@ patch_size = [320,320]#[128,128]
 
 histogram_equalization = False
 background_cutoff =  2.5e-06
-maximum_cutoff = 0.00015
+maximum_cutoff = 5.5e-05# 0.00015
 normalize_factor = 'equation'
 
 ######Patient list

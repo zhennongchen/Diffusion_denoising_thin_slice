@@ -358,7 +358,7 @@ class Dataset_2D_distilled(Dataset):
 
             # define a list of random slice numbers
             if self.slice_range == None:
-                total_slice_range = [0,self.current_condition_data.shape[2]] if self.supervision == 'supervised' else [0 + 1,self.current_condition_data.shape[2]-1]
+                total_slice_range =  [0 + 1,self.current_condition_data.shape[2]-1]
             else:
                 total_slice_range = self.slice_range
             # print('in this condition case, total slice range is: ', total_slice_range)

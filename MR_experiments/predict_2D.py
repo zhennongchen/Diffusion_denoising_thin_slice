@@ -9,6 +9,7 @@ import Diffusion_denoising_thin_slice.denoising_diffusion_pytorch.denoising_diff
 import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator_MR as Generator_MR
+import Diffusion_denoising_thin_slice.Data_processing as Data_processing
 
 
 def get_args_parser():
@@ -52,7 +53,7 @@ def run(args):
 
     histogram_equalization = False
     background_cutoff =  2.5e-06
-    maximum_cutoff = 0.00015
+    maximum_cutoff =5.5e-05# 0.00015
     normalize_factor = 'equation'
 
     ###########
@@ -160,7 +161,7 @@ def run(args):
                         random_pick_slice = False,
                         slice_range = None if args.slice_range is None else [slice_start, slice_end],)
 
-                    # sample:
+                    sample:
                     sampler = ddpm.Sampler(diffusion_model,generator,batch_size = 1)
 
                     pred_img = sampler.sample_2D(trained_model_filename, condition_img, modality = 'MR')
@@ -188,8 +189,10 @@ def run(args):
 
 
                 if iteration == 1:
-                    nb.save(nb.Nifti1Image(np.transpose(np.copy(gt_img), (2,0,1)), affine), os.path.join(save_folder_case, 'gt_img.nii.gz'))
-                    nb.save(nb.Nifti1Image(np.transpose(np.copy(condition_img), (2,0,1)), affine), os.path.join(save_folder_case, 'condition_img.nii.gz'))
+                    gt_img_save = Data_processing.cutoff_intensity(np.transpose(np.copy(gt_img), (2,0,1)),cutoff_low = background_cutoff, cutoff_high = maximum_cutoff)
+                    condition_img_save = Data_processing.cutoff_intensity(np.transpose(np.copy(condition_img), (2,0,1)),cutoff_low = background_cutoff, cutoff_high = maximum_cutoff)
+                    nb.save(nb.Nifti1Image(gt_img_save, affine), os.path.join(save_folder_case, 'gt_img.nii.gz'))
+                    nb.save(nb.Nifti1Image(condition_img_save, affine), os.path.join(save_folder_case, 'condition_img.nii.gz'))
         
 
         if do_pred_or_avg == 'avg':

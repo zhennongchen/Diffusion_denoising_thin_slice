@@ -1366,7 +1366,6 @@ class Sampler(object):
         dl = DataLoader(self.generator, batch_size = self.batch_size, shuffle = False, pin_memory = True, num_workers = 0)# cpu_count())
         
         self.histogram_equalization = self.generator.histogram_equalization if hasattr(self.generator, 'histogram_equalization') else False
-        print('histogram equalization: ', self.histogram_equalization)
         self.bins = self.generator.bins if hasattr(self.generator, 'bins') else None
         self.bins_mapped = self.generator.bins_mapped if hasattr(self.generator, 'bins_mapped') else None
         self.background_cutoff = self.generator.background_cutoff if hasattr(self.generator, 'background_cutoff') else None
@@ -1392,8 +1391,6 @@ class Sampler(object):
 
 
     def sample_2D(self, trained_model_filename, condition_img, direct_use_of_model = False, modality = 'CT'):
-
-        print('in sample_2D function, condition img shape: ', condition_img.shape)
         
         background_cutoff = self.background_cutoff; maximum_cutoff = self.maximum_cutoff; normalize_factor = self.normalize_factor
         if direct_use_of_model == False:

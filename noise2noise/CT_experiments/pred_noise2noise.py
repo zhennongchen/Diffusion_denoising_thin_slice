@@ -53,9 +53,9 @@ def run(args):
     image_size = [512,512]
 
     histogram_equalization = False
-    background_cutoff = -1000
-    maximum_cutoff = 2000
-    normalize_factor = 1000
+    background_cutoff = -200
+    maximum_cutoff = 250
+    normalize_factor = 'equation'
     #######################
     if args.noise_type == 'gaussian':
         build_sheet =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v2.xlsx'))
@@ -70,19 +70,13 @@ def run(args):
     # build model
     model = noise2noise.Unet(
         problem_dimension = '2D',  # '2D' or '3D'
-    
         input_channels = 1,
         out_channels = 1,  
         initial_dim = 16,  # initial feature dimension after first conv layer
         dim_mults = (2,4,8,16),
-        groups = 8,
-        
-        attn_dim_head = 32,
-        attn_heads = 4,
-        full_attn_paths = (None, None, None, None), # these are for downsampling and upsampling paths
-        full_attn_bottleneck = None, # this is for the middle bottleneck layer
-        act = 'ReLU',
-    )
+        full_attn_paths = (None, None, False, True), # these are for downsampling and upsampling paths
+        full_attn_bottleneck = True, # this is for the middle bottleneck layer
+        act = 'ReLU',)
 
     # main
     G = Generator.Dataset_2D

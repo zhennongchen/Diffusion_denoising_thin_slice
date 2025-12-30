@@ -3,11 +3,11 @@ sys.path.append('/host/d/Github')
 import os
 import torch
 import numpy as np 
-import Diffusion_denoising_thin_slice.denoising_diffusion_pytorch.denoising_diffusion_pytorch.conditional_diffusion as ddpm
-import Diffusion_denoising_thin_slice.denoising_diffusion_pytorch.denoising_diffusion_pytorch.conditional_EDM as edm
+import Diffusion_denoising_thin_slice.Thinslice_experiments.denoising_diffusion_pytorch.denoising_diffusion_pytorch.conditional_diffusion as ddpm
+# import Diffusion_denoising_thin_slice.denoising_diffusion_pytorch.denoising_diffusion_pytorch.conditional_EDM as edm
 import Diffusion_denoising_thin_slice.functions_collection as ff
-import Diffusion_denoising_thin_slice.saved_version_for_thin_slice.Build_lists.Build_list as Build_list
-import Diffusion_denoising_thin_slice.saved_version_for_thin_slice.Generator as Generator
+import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
+import Diffusion_denoising_thin_slice.Generator_thinslice as Generator
 
 trial_name = 'distill_brainCT'
 problem_dimension = '2D'
@@ -38,13 +38,17 @@ normalize_factor = 'equation'
 
 ###########################
 # define train
-build_sheet =  Build_list.Build(os.path.join('/host/d/Data/brain_CT/Patient_lists/fixedCT_static_distilled_model_train_test_xjtlu.xlsx'))
-_,_,_,_, condition_list_train, x0_list_train = build_sheet.__build__(batch_list = [0,1,2,3]) 
-x0_list_train = x0_list_train[0:1]; condition_list_train = condition_list_train[0:1]
+build_sheet =  Build_list.Build_thinsliceCT(os.path.join('/host/d/Data/brain_CT/Patient_lists/fixedCT_static_distilled_model_train_test_xjtlu.xlsx'))
+_,_,_,_, condition_list_train, x0_list_train = build_sheet.__build__(batch_list = [0,1,2,3,4,5]) 
+# find out who has avg20 
+index_list = []
+for i in range(x0_list_train.shape[0]):
+    if os.path.isfile(x0_list_train[i]):
+        index_list.append(i)
+condition_list_train = condition_list_train[index_list]; x0_list_train = x0_list_train[index_list]
 
- 
 # define val
-_,_,_,_, condition_list_val, x0_list_val = build_sheet.__build__(batch_list = [4])
+_,_,_,_, condition_list_val, x0_list_val = build_sheet.__build__(batch_list = [5])
 # x0_list_val = x0_list_val[0:1]; condition_list_val = condition_list_val[0:1]
 
 print('train:', x0_list_train.shape, condition_list_train.shape, 'val:', x0_list_val.shape, condition_list_val.shape)
@@ -75,13 +79,12 @@ diffusion_model = ddpm.GaussianDiffusion(
 
 # generator definition
 generator_train = Generator.Dataset_2D_distilled(
-        supervision = supervision,
 
         img_list = x0_list_train,
         condition_list = condition_list_train,
         image_size = image_size,
 
-        num_slices_per_image = 50,
+        num_slices_per_image = 20,
         random_pick_slice = True,
         slice_range = None,
 
@@ -98,7 +101,6 @@ generator_train = Generator.Dataset_2D_distilled(
         augment_frequency = 0.5,)
 
 generator_val = Generator.Dataset_2D_distilled(
-        supervision = supervision,
 
         img_list = x0_list_val,
         condition_list = condition_list_val,
@@ -106,7 +108,7 @@ generator_val = Generator.Dataset_2D_distilled(
 
         num_slices_per_image = 20,
         random_pick_slice = False,
-        slice_range = [20,30], #[50,70],
+        slice_range = [20,40], #[50,70],
 
         num_patches_per_slice = 1,
         patch_size = [512,512],

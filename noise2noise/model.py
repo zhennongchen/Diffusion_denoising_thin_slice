@@ -397,7 +397,7 @@ class Unet(nn.Module):
         input_channels = 1,
         out_channels = 1,  
 
-        initial_dim = 16,  # initial feature dimension after first conv layer
+        initial_dim = 64,  # initial feature dimension after first conv layer
         dim_mults = (2,4,8,16),
         groups = 4,
       

@@ -12,8 +12,6 @@ from torch.utils.data import Dataset
 import Diffusion_denoising_thin_slice.Data_processing as Data_processing
 import Diffusion_denoising_thin_slice.functions_collection as ff
 
-
-
 # random function
 def random_rotate(i, z_rotate_degree = None, z_rotate_range = [-10,10], fill_val = None, order = 1):
     # only do rotate according to z (in-plane rotation)
@@ -247,220 +245,220 @@ class Dataset_2D(Dataset):
     
 
 
-class Dataset_2D_adjacent_slices(Dataset):
-    def __init__(
-        self,
+# class Dataset_2D_adjacent_slices(Dataset):
+#     def __init__(
+#         self,
 
-        img_list,
-        condition_list,
-        image_size,
+#         img_list,
+#         condition_list,
+#         image_size,
 
-        num_slices_per_image,
-        random_pick_slice,
-        slice_range, # None or [a,b]
+#         num_slices_per_image,
+#         random_pick_slice,
+#         slice_range, # None or [a,b]
 
-        supervision, # supervised or unsupervised
+#         supervision, # supervised or unsupervised
 
-        histogram_equalization,
-        bins,
-        bins_mapped,
+#         histogram_equalization,
+#         bins,
+#         bins_mapped,
 
-        background_cutoff, 
-        maximum_cutoff,
-        normalize_factor,
+#         background_cutoff, 
+#         maximum_cutoff,
+#         normalize_factor,
 
-        num_patches_per_slice = None,
-        patch_size = None,
+#         num_patches_per_slice = None,
+#         patch_size = None,
 
-        shuffle = False,
-        augment = False,
-        augment_frequency = 0,
+#         shuffle = False,
+#         augment = False,
+#         augment_frequency = 0,
 
-        preload = False,
-        preload_data = None,
+#         preload = False,
+#         preload_data = None,
 
-        switch_odd_and_even_frequency = None, # we don't have this option in adjacent slice case
-    ):
-        super().__init__()
-        self.img_list = img_list
-        self.condition_list = condition_list
-        self.image_size = image_size
-        self.num_slices_per_image = num_slices_per_image
-        self.random_pick_slice = random_pick_slice
-        self.slice_range = slice_range
-        self.num_patches_per_slice = num_patches_per_slice
-        self.patch_size = patch_size
+#         switch_odd_and_even_frequency = None, # we don't have this option in adjacent slice case
+#     ):
+#         super().__init__()
+#         self.img_list = img_list
+#         self.condition_list = condition_list
+#         self.image_size = image_size
+#         self.num_slices_per_image = num_slices_per_image
+#         self.random_pick_slice = random_pick_slice
+#         self.slice_range = slice_range
+#         self.num_patches_per_slice = num_patches_per_slice
+#         self.patch_size = patch_size
 
-        self.supervision = supervision
-        self.preload = preload
-        self.preload_img_data = preload_data[0] if self.preload == True else None
-        self.preload_condition_data = preload_data[1] if self.preload == True else None
+#         self.supervision = supervision
+#         self.preload = preload
+#         self.preload_img_data = preload_data[0] if self.preload == True else None
+#         self.preload_condition_data = preload_data[1] if self.preload == True else None
 
-        self.histogram_equalization = histogram_equalization
-        self.bins = bins
-        self.bins_mapped = bins_mapped
-        self.background_cutoff = background_cutoff
-        self.maximum_cutoff = maximum_cutoff
-        self.normalize_factor = normalize_factor
-        self.shuffle = shuffle
-        self.augment = augment
-        self.augment_frequency = augment_frequency
-        self.num_files = len(img_list)
+#         self.histogram_equalization = histogram_equalization
+#         self.bins = bins
+#         self.bins_mapped = bins_mapped
+#         self.background_cutoff = background_cutoff
+#         self.maximum_cutoff = maximum_cutoff
+#         self.normalize_factor = normalize_factor
+#         self.shuffle = shuffle
+#         self.augment = augment
+#         self.augment_frequency = augment_frequency
+#         self.num_files = len(img_list)
 
-        self.index_array = self.generate_index_array()
-        self.current_x0_file = None
-        self.current_x0_data = None
-        self.current_condition_file = None
-        self.current_condition_data = None
+#         self.index_array = self.generate_index_array()
+#         self.current_x0_file = None
+#         self.current_x0_data = None
+#         self.current_condition_file = None
+#         self.current_condition_data = None
        
 
-    def generate_index_array(self):
-        np.random.seed()
-        index_array = []; index_array_patches = []
+#     def generate_index_array(self):
+#         np.random.seed()
+#         index_array = []; index_array_patches = []
         
-        if self.shuffle == True:
-            f_list = np.random.permutation(self.num_files)
-        else:
-            f_list = np.arange(self.num_files)
+#         if self.shuffle == True:
+#             f_list = np.random.permutation(self.num_files)
+#         else:
+#             f_list = np.arange(self.num_files)
 
-        for f in f_list:
-            s_list = np.arange(self.num_slices_per_image)
-            for s in s_list:
-                index_array.append([f, s])
-                if self.num_patches_per_slice != None:
-                    patch_list = np.arange(self.num_patches_per_slice)
-                    for p in patch_list:
-                        index_array_patches.append([f, s,p])
-        if self.num_patches_per_slice != None:
-            return index_array_patches
-        else:
-            return index_array
+#         for f in f_list:
+#             s_list = np.arange(self.num_slices_per_image)
+#             for s in s_list:
+#                 index_array.append([f, s])
+#                 if self.num_patches_per_slice != None:
+#                     patch_list = np.arange(self.num_patches_per_slice)
+#                     for p in patch_list:
+#                         index_array_patches.append([f, s,p])
+#         if self.num_patches_per_slice != None:
+#             return index_array_patches
+#         else:
+#             return index_array
 
-    def __len__(self):
-        if self.num_patches_per_slice != None:
-            return self.num_files * self.num_slices_per_image * self.num_patches_per_slice
-        else:
-            return self.num_files * self.num_slices_per_image
+#     def __len__(self):
+#         if self.num_patches_per_slice != None:
+#             return self.num_files * self.num_slices_per_image * self.num_patches_per_slice
+#         else:
+#             return self.num_files * self.num_slices_per_image
     
 
-    def load_file(self, filename = None, preload_data = None):
-        if self.preload == False:
-            ii = nb.load(filename).get_fdata()
-        else:
-            ii = preload_data
+#     def load_file(self, filename = None, preload_data = None):
+#         if self.preload == False:
+#             ii = nb.load(filename).get_fdata()
+#         else:
+#             ii = preload_data
     
-        # do histogram equalization first
-        if self.histogram_equalization == True: 
-            ii = Data_processing.apply_transfer_to_img(ii, self.bins, self.bins_mapped)
-        # cutoff and normalization
-        ii = Data_processing.cutoff_intensity(ii,cutoff_low = self.background_cutoff, cutoff_high = self.maximum_cutoff)
-        ii = Data_processing.normalize_image(ii, normalize_factor = self.normalize_factor, image_max = self.maximum_cutoff, image_min = self.background_cutoff ,invert = False)
-        ii = Data_processing.crop_or_pad(ii, [self.image_size[0], self.image_size[1], ii.shape[2]], value= np.min(ii))
+#         # do histogram equalization first
+#         if self.histogram_equalization == True: 
+#             ii = Data_processing.apply_transfer_to_img(ii, self.bins, self.bins_mapped)
+#         # cutoff and normalization
+#         ii = Data_processing.cutoff_intensity(ii,cutoff_low = self.background_cutoff, cutoff_high = self.maximum_cutoff)
+#         ii = Data_processing.normalize_image(ii, normalize_factor = self.normalize_factor, image_max = self.maximum_cutoff, image_min = self.background_cutoff ,invert = False)
+#         ii = Data_processing.crop_or_pad(ii, [self.image_size[0], self.image_size[1], ii.shape[2]], value= np.min(ii))
 
-        return ii
+#         return ii
         
-    def __getitem__(self, index):
-        # print('in this geiitem, self.index_array is: ', self.index_array)
-        if self.num_patches_per_slice != None:
-            f,s,p = self.index_array[index]
-        else:
-            f,s = self.index_array[index]
-        # print('index is: ', index, ' now we pick file ', f)
-        x0_filename = self.img_list[f]
-        # print('x0 filename is: ', x0_filename, ' while current x0 file is: ', self.current_x0_file)
-        condition_file = self.condition_list[f]
-        # print('condition file is: ', condition_file, ' while current condition file is: ', self.current_condition_file)
+#     def __getitem__(self, index):
+#         # print('in this geiitem, self.index_array is: ', self.index_array)
+#         if self.num_patches_per_slice != None:
+#             f,s,p = self.index_array[index]
+#         else:
+#             f,s = self.index_array[index]
+#         # print('index is: ', index, ' now we pick file ', f)
+#         x0_filename = self.img_list[f]
+#         # print('x0 filename is: ', x0_filename, ' while current x0 file is: ', self.current_x0_file)
+#         condition_file = self.condition_list[f]
+#         # print('condition file is: ', condition_file, ' while current condition file is: ', self.current_condition_file)
 
-        if self.supervision == 'supervised': # in unsupervised case, we do not need to load the x0 file since we don't have clean image
-            if x0_filename != self.current_x0_file:
-                if self.preload == False:
-                    x0_img = self.load_file(filename = x0_filename)
-                else:
-                    x0_img = self.load_file(preload_data = self.preload_img_data[f])
-                # print('load: ',x0_filename)
-                self.current_x0_file = x0_filename
-                self.current_x0_data = np.copy(x0_img)
+#         if self.supervision == 'supervised': # in unsupervised case, we do not need to load the x0 file since we don't have clean image
+#             if x0_filename != self.current_x0_file:
+#                 if self.preload == False:
+#                     x0_img = self.load_file(filename = x0_filename)
+#                 else:
+#                     x0_img = self.load_file(preload_data = self.preload_img_data[f])
+#                 # print('load: ',x0_filename)
+#                 self.current_x0_file = x0_filename
+#                 self.current_x0_data = np.copy(x0_img)
 
-        if condition_file != self.current_condition_file:
-            if self.preload == False:
-                condition_img = self.load_file(filename = condition_file)
-            else:
-                condition_img = self.load_file(preload_data = self.preload_condition_data[f])
+#         if condition_file != self.current_condition_file:
+#             if self.preload == False:
+#                 condition_img = self.load_file(filename = condition_file)
+#             else:
+#                 condition_img = self.load_file(preload_data = self.preload_condition_data[f])
            
-            self.current_condition_file = condition_file
-            self.current_condition_data = np.copy(condition_img)
+#             self.current_condition_file = condition_file
+#             self.current_condition_data = np.copy(condition_img)
 
-            if self.supervision == 'unsupervised':
-                self.current_x0_data = np.copy(self.current_condition_data)
+#             if self.supervision == 'unsupervised':
+#                 self.current_x0_data = np.copy(self.current_condition_data)
 
-            # define a list of random slice numbers
-            if self.slice_range == None:
-                total_slice_range = [0,self.current_condition_data.shape[2]] if self.supervision == 'supervised' else [0 + 1,self.current_condition_data.shape[2]-1]
-            else:
-                total_slice_range = self.slice_range
-            # print('in this condition case, total slice range is: ', total_slice_range)
-            if self.random_pick_slice == False:
-                self.slice_index_list = np.arange(total_slice_range[0], total_slice_range[1])
-                self.slice_index_list = self.slice_index_list[:self.num_slices_per_image]
-            else:
-                self.slice_index_list = np.random.permutation(np.arange(total_slice_range[0], total_slice_range[1]))[:self.num_slices_per_image]
-            # print('in this condition case, slice index list is: ', self.slice_index_list)
+#             # define a list of random slice numbers
+#             if self.slice_range == None:
+#                 total_slice_range = [0,self.current_condition_data.shape[2]] if self.supervision == 'supervised' else [0 + 1,self.current_condition_data.shape[2]-1]
+#             else:
+#                 total_slice_range = self.slice_range
+#             # print('in this condition case, total slice range is: ', total_slice_range)
+#             if self.random_pick_slice == False:
+#                 self.slice_index_list = np.arange(total_slice_range[0], total_slice_range[1])
+#                 self.slice_index_list = self.slice_index_list[:self.num_slices_per_image]
+#             else:
+#                 self.slice_index_list = np.random.permutation(np.arange(total_slice_range[0], total_slice_range[1]))[:self.num_slices_per_image]
+#             # print('in this condition case, slice index list is: ', self.slice_index_list)
 
-        # pick the slice
-        # print('pick the slice: ', self.slice_index_list[s])
-        s = self.slice_index_list[s]
+#         # pick the slice
+#         # print('pick the slice: ', self.slice_index_list[s])
+#         s = self.slice_index_list[s]
 
-        # pick the patch:
-        if self.num_patches_per_slice != None:
-            x_shape, y_shape = self.current_condition_data.shape[0], self.current_condition_data.shape[1]
-            random_origin_x, random_origin_y = random.randint(0, x_shape - self.patch_size[0]), random.randint(0, y_shape - self.patch_size[1])
-            # print('x range is: ', random_origin_x, random_origin_x + self.patch_size[0], ' and y range is: ', random_origin_y, random_origin_y + self.patch_size[1])
+#         # pick the patch:
+#         if self.num_patches_per_slice != None:
+#             x_shape, y_shape = self.current_condition_data.shape[0], self.current_condition_data.shape[1]
+#             random_origin_x, random_origin_y = random.randint(0, x_shape - self.patch_size[0]), random.randint(0, y_shape - self.patch_size[1])
+#             # print('x range is: ', random_origin_x, random_origin_x + self.patch_size[0], ' and y range is: ', random_origin_y, random_origin_y + self.patch_size[1])
 
-        # target image
-        x0_image_data = np.copy(self.current_x0_data)[:,:,s] 
-        # if self.target == 'mean':
-        #     x0_image_data = (self.current_x0_data[:,:,s-1] + self.current_x0_data[:,:,s+1]) / 2
-        # crop the patch
-        if self.num_patches_per_slice != None:
-            x0_image_data = x0_image_data[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
+#         # target image
+#         x0_image_data = np.copy(self.current_x0_data)[:,:,s] 
+#         # if self.target == 'mean':
+#         #     x0_image_data = (self.current_x0_data[:,:,s-1] + self.current_x0_data[:,:,s+1]) / 2
+#         # crop the patch
+#         if self.num_patches_per_slice != None:
+#             x0_image_data = x0_image_data[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
         
-        # condition image
-        if self.supervision == 'supervised':
-            condition_image_data = np.copy(self.current_condition_data)[:,:,s]
-            if self.num_patches_per_slice != None:
-                condition_image_data = condition_image_data[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
-        elif self.supervision == 'unsupervised':
-            condition_image_data1 = np.copy(self.current_condition_data)[:,:,s-1]
-            condition_image_data2 = np.copy(self.current_condition_data)[:,:,s+1]
-            if self.num_patches_per_slice != None:
-                condition_image_data1 = condition_image_data1[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
-                condition_image_data2 = condition_image_data2[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
-            condition_image_data = np.stack([condition_image_data1, condition_image_data2], axis = -1)
+#         # condition image
+#         if self.supervision == 'supervised':
+#             condition_image_data = np.copy(self.current_condition_data)[:,:,s]
+#             if self.num_patches_per_slice != None:
+#                 condition_image_data = condition_image_data[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
+#         elif self.supervision == 'unsupervised':
+#             condition_image_data1 = np.copy(self.current_condition_data)[:,:,s-1]
+#             condition_image_data2 = np.copy(self.current_condition_data)[:,:,s+1]
+#             if self.num_patches_per_slice != None:
+#                 condition_image_data1 = condition_image_data1[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
+#                 condition_image_data2 = condition_image_data2[random_origin_x:random_origin_x + self.patch_size[0], random_origin_y:random_origin_y + self.patch_size[1]]
+#             condition_image_data = np.stack([condition_image_data1, condition_image_data2], axis = -1)
           
 
-        # augmentation
-        if self.augment == True:
-            if random.uniform(0,1) < self.augment_frequency:
-                x0_image_data, z_rotate_degree = random_rotate(x0_image_data,  order = 1)
-                x0_image_data, x_translate, y_translate = random_translate(x0_image_data)
-                condition_image_data, _ = random_rotate(condition_image_data, z_rotate_degree = z_rotate_degree, order = 1)
-                condition_image_data, _, _ = random_translate(condition_image_data, x_translate = x_translate, y_translate = y_translate)
-                # print('augment : z_rotate_degree, x_translate, y_translate: ', z_rotate_degree, x_translate, y_translate)
+#         # augmentation
+#         if self.augment == True:
+#             if random.uniform(0,1) < self.augment_frequency:
+#                 x0_image_data, z_rotate_degree = random_rotate(x0_image_data,  order = 1)
+#                 x0_image_data, x_translate, y_translate = random_translate(x0_image_data)
+#                 condition_image_data, _ = random_rotate(condition_image_data, z_rotate_degree = z_rotate_degree, order = 1)
+#                 condition_image_data, _, _ = random_translate(condition_image_data, x_translate = x_translate, y_translate = y_translate)
+#                 # print('augment : z_rotate_degree, x_translate, y_translate: ', z_rotate_degree, x_translate, y_translate)
         
             
-        x0_image_data = torch.from_numpy(x0_image_data).unsqueeze(0).float()
-        if self.supervision == 'supervised':
-            condition_image_data = torch.from_numpy(condition_image_data).unsqueeze(0).float()
-        elif self.supervision == 'unsupervised':
+#         x0_image_data = torch.from_numpy(x0_image_data).unsqueeze(0).float()
+#         if self.supervision == 'supervised':
+#             condition_image_data = torch.from_numpy(condition_image_data).unsqueeze(0).float()
+#         elif self.supervision == 'unsupervised':
       
-            condition_image_data = np.transpose(condition_image_data, (2,0,1))
-            condition_image_data = torch.from_numpy(condition_image_data).float()
+#             condition_image_data = np.transpose(condition_image_data, (2,0,1))
+#             condition_image_data = torch.from_numpy(condition_image_data).float()
             
 
-        # print('shape of x0 image data: ', x0_image_data.shape, ' and condition image data: ', condition_image_data.shape)
-        return x0_image_data, condition_image_data
+#         # print('shape of x0 image data: ', x0_image_data.shape, ' and condition image data: ', condition_image_data.shape)
+#         return x0_image_data, condition_image_data
     
-    def on_epoch_end(self):
-        print('now run on_epoch_end function')
-        self.index_array = self.generate_index_array()
+#     def on_epoch_end(self):
+#         print('now run on_epoch_end function')
+#         self.index_array = self.generate_index_array()
     

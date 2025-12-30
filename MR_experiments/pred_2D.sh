@@ -9,14 +9,14 @@
 # echo "Finished all jobs"
 
 # # ============ USER SETTINGS ============
-TRIAL="unsupervised_MR"
+TRIAL="unsupervised_MR_try2"
 MODE="pred"   # or: avg
 INPUT="both"   # or: odd / even / both / all
 RANGE="20-40"
 # =======================================
 
 # list of epochs you want to run
-EPOCH_LIST=(250 300 350 400 450 500 550 600)
+EPOCH_LIST=(150 200)
 
 # loop through epochs
 for EPOCH in "${EPOCH_LIST[@]}"; do

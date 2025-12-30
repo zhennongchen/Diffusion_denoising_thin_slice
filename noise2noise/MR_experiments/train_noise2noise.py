@@ -65,7 +65,7 @@ if preload  == True:
     x0_data_train, condition_data_train = ff.preload_data(x0_list_train), ff.preload_data(condition_list_train)
     x0_data_val, condition_data_val = ff.preload_data(x0_list_val), ff.preload_data(condition_list_val)
 
-G =  Generator_MR.Dataset_2D
+G = Generator_MR.Dataset_2D
 generator_train = G(
         supervision = supervision,
 
