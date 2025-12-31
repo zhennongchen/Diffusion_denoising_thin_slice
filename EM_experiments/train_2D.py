@@ -26,8 +26,8 @@ condition_channel = 1
 train_batch_size = 3
 objective = 'pred_x0' #if 'noise' not in trial_name else 'pred_noise'
 
-pre_trained_model =  None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-130.pt') #None
-start_step = 0
+pre_trained_model =  os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-5.pt') #None
+start_step = 5
 
 # image condition
 image_size = None

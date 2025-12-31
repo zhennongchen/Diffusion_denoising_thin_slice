@@ -158,7 +158,7 @@ class Dataset_2D(Dataset):
         if self.image_size is not None: 
             if ii.shape[0] != self.image_size[0] or ii.shape[1] != self.image_size[1]:
                 ii = Data_processing.crop_or_pad(ii, [self.image_size[0], self.image_size[1], ii.shape[2]], value= np.min(ii))
-        print('max and min after normalization:', np.max(ii), np.min(ii))
+        # print('max and min after normalization:', np.max(ii), np.min(ii))
         return ii
         
     def __getitem__(self, index):

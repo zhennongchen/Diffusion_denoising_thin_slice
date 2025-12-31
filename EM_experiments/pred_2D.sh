@@ -10,7 +10,7 @@
 
 # # ============ USER SETTINGS ============
 TRIAL="unsupervised_gaussian_EM"
-MODE="pred"   # or: avg
+MODE="avg"   # or: avg
 RANGE="10-15"
 FINALMAX_FINALMIN="1_-1"  # final max and min values for clipping, such as 1_-1
 # =======================================
