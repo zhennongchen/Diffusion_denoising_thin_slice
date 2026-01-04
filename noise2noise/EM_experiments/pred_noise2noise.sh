@@ -9,7 +9,7 @@
 # echo "Finished all jobs"
 
 # # ============ USER SETTINGS ============
-TRIAL="noise2noise_EM"
+TRIAL="noise2noise_EM_range-1+1"
 RANGE="10-15"
 NOISETYPE="gaussian"  # or: gaussian
 # =======================================

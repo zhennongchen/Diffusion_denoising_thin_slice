@@ -9,7 +9,7 @@ import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator_EM as Generator_EM
 
 #######################
-trial_name = 'noise2noise_EM_range01'
+trial_name = 'noise2noise_EM_range-1+1'
 preload = False
 supervision = 'unsupervised' 
 
@@ -25,24 +25,24 @@ histogram_equalization = False
 background_cutoff = 0
 maximum_cutoff = 1
 final_max = 1
-final_min = 0
+final_min = -1
 normalize_factor = 'equation'
 #######################
 build_sheet =  Build_list.Build_EM(os.path.join('/host/d/Data/minnie_EM/Patient_lists/minnie_EM_split_gaussian_simulation_v1.xlsx'))
 
 # define train patient list
 _, patient_id_list_train, _, _, simulation_file_1_list_train, simulation_file_2_list_train, ground_truth_file_list_train, _ = build_sheet.__build__(batch_list = ['train'])
-patient_id_list_train = patient_id_list_train[0:1]
-simulation_file_1_list_train = simulation_file_1_list_train[0:1]
-simulation_file_2_list_train = simulation_file_2_list_train[0:1]
-ground_truth_file_list_train = ground_truth_file_list_train[0:1]
+# patient_id_list_train = patient_id_list_train[0:1]
+# simulation_file_1_list_train = simulation_file_1_list_train[0:1]
+# simulation_file_2_list_train = simulation_file_2_list_train[0:1]
+# ground_truth_file_list_train = ground_truth_file_list_train[0:1]
 
 # define val patient list
 _, patient_id_list_val, _, _, simulation_file_1_list_val, simulation_file_2_list_val, ground_truth_file_list_val, _ = build_sheet.__build__(batch_list = ['val'])
-patient_id_list_val = patient_id_list_val[0:1]
-simulation_file_1_list_val = simulation_file_1_list_val[0:1]
-simulation_file_2_list_val = simulation_file_2_list_val[0:1]
-ground_truth_file_list_val = ground_truth_file_list_val[0:1]
+# patient_id_list_val = patient_id_list_val[0:1]
+# simulation_file_1_list_val = simulation_file_1_list_val[0:1]
+# simulation_file_2_list_val = simulation_file_2_list_val[0:1]
+# ground_truth_file_list_val = ground_truth_file_list_val[0:1]
 
 print('number of training cases:', ground_truth_file_list_train.shape[0], '; number of validation cases:', ground_truth_file_list_val.shape[0], ' example of simulation_file_1_list_train:', simulation_file_1_list_train[0])
 

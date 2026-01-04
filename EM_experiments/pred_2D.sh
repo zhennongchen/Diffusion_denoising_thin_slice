@@ -9,14 +9,14 @@
 # echo "Finished all jobs"
 
 # # ============ USER SETTINGS ============
-TRIAL="unsupervised_gaussian_EM"
+TRIAL="unsupervised_gaussian_EM_range01"
 MODE="avg"   # or: avg
 RANGE="10-15"
-FINALMAX_FINALMIN="1_-1"  # final max and min values for clipping, such as 1_-1
+FINALMAX_FINALMIN="1_0"  # final max and min values for clipping, such as 1_-1
 # =======================================
 
 # list of epochs you want to run
-EPOCH_LIST=(85 55)
+EPOCH_LIST=(125 105 75 180)
 
 # loop through epochs
 for EPOCH in "${EPOCH_LIST[@]}"; do

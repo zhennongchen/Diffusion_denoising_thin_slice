@@ -47,7 +47,7 @@ def run(args):
     maximum_cutoff = 1
     normalize_factor = 'equation'
     final_max = 1
-    final_min = 0
+    final_min = -1
 
     #######################
     build_sheet =  Build_list.Build_EM(os.path.join('/host/d/Data/minnie_EM/Patient_lists/minnie_EM_split_gaussian_simulation_v1.xlsx'))
