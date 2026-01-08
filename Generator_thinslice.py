@@ -65,6 +65,9 @@ class Dataset_2D(Dataset):
         num_patches_per_slice = None,
         patch_size = None,
 
+        preload = False,
+        preload_data = None,
+
         shuffle = False,
         augment = False,
         augment_frequency = 0,
@@ -80,6 +83,9 @@ class Dataset_2D(Dataset):
         self.patch_size = patch_size
 
         self.supervision = supervision
+
+        self.preload = preload
+        self.preload_condition_data = preload_data[0] if self.preload == True else None
 
         self.histogram_equalization = histogram_equalization
         self.bins = bins
@@ -128,8 +134,11 @@ class Dataset_2D(Dataset):
             return self.num_files * self.num_slices_per_image
     
 
-    def load_file(self, filename):
-        ii = nb.load(filename).get_fdata()
+    def load_file(self, filename, preload_data = None):
+        if self.preload == False or self.preload == None:
+            ii = nb.load(filename).get_fdata()
+        else:
+            ii = preload_data
     
         # do histogram equalization first
         if self.histogram_equalization == True: 
@@ -163,11 +172,12 @@ class Dataset_2D(Dataset):
 
         if condition_file != self.current_condition_file:
             # print('it is a new case, load the file')
-            condition_img = self.load_file(condition_file)
+            condition_img = self.load_file(condition_file, preload_data = self.preload_condition_data[f] if self.preload == True else None)
             self.current_condition_file = condition_file
             self.current_condition_data = np.copy(condition_img)
 
             if self.supervision == 'unsupervised':
+                # print('unsupervised dataset, set current x0 data as condition data ')
                 self.current_x0_data = np.copy(self.current_condition_data)
 
             # define a list of random slice numbers

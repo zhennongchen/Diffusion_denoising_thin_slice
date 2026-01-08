@@ -1,4 +1,4 @@
-# dataset classes
+# generator for CT experiments
 
 import os
 import numpy as np

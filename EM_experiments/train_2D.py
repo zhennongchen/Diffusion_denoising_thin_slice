@@ -10,7 +10,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator_EM as Generator_EM
 
-trial_name = 'unsupervised_gaussian_EM_range01'
+trial_name = 'unsupervised_gaussian_EM_range01_try'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'
 
