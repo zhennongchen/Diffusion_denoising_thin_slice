@@ -13,7 +13,7 @@ problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
 train_batch_size = 10
-preload = True
+preload = False
 
 # bias  
 beta = 0
@@ -25,8 +25,8 @@ edge_weight = 0#0.05
 # else: condition on neighboring slices, target the current slice
 condition_channel = 1 if (supervision == 'supervised') or ('mean' in trial_name) else 2
 
-pre_trained_model = None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-2640.pt') #None
-start_step = 0
+pre_trained_model = os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-103.pt') #None
+start_step = 103
 image_size = [512,512]
 num_patches_per_slice = 2
 patch_size = [128,128]
