@@ -93,7 +93,7 @@ def run(args):
         clip_or_not = True, 
         clip_range = clip_range, )
 
-    for i in range(0,1):#patient_id_list.shape[0]):
+    for i in range(0,patient_id_list.shape[0]):
         patient_id = patient_id_list[i]
         x0_file = x0_list[i]
         condition_file = condition_list[i]
@@ -105,7 +105,8 @@ def run(args):
         affine = condition_file_load.affine
         condition_img = condition_file_load.get_fdata()
 
-        if args.slice_range is not "all":
+        print("slice_range: ", args.slice_range)
+        if args.slice_range != "all":
             slice_start, slice_end = args.slice_range.split('-')
             slice_start, slice_end = int(slice_start), int(slice_end)
         else:
@@ -180,15 +181,15 @@ def run(args):
             for jj in range(len(made_predicts)):
                 total_predicts += os.path.isfile(os.path.join(made_predicts[jj],'pred_img.nii.gz'))
             print('total made predicts:', total_predicts)
-            if total_predicts != 20:
-                print('skip, not enough predicts')
-                continue
+            # if total_predicts != 20:
+            #     print('skip, not enough predicts')
+            #     continue
 
             loaded_data = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2], total_predicts))
             for j in range(total_predicts):
                 loaded_data[:,:,:,j] = nb.load(os.path.join(made_predicts[j],'pred_img.nii.gz')).get_fdata()
 
-            for avg_num in [10,20]:#[2,4,6,8,10,12,14,16,18,20]:#range(1,total_predicts+1):
+            for avg_num in [10]:#[2,4,6,8,10,12,14,16,18,20]:#range(1,total_predicts+1):
                 print('avg_num:', avg_num)
                 predicts_avg = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2], avg_num))
                 print('predict_num:', avg_num)
@@ -198,3 +199,9 @@ def run(args):
                 # average across last axis
                 predicts_avg = np.mean(predicts_avg, axis = -1)
                 nb.save(nb.Nifti1Image(predicts_avg, affine), os.path.join(save_folder_avg, 'pred_img_scans' + str(avg_num) + '.nii.gz'))
+
+if __name__ == '__main__':
+    args = get_args_parser()
+    args = args.parse_args()
+
+    run(args)
