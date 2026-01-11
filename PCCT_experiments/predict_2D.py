@@ -119,7 +119,7 @@ def run(args):
         if do_pred_or_avg == 'pred':
 
             # get the condition image
-            for iteration in range(1,11):
+            for iteration in range(11,21):
                 print('iteration:', iteration)
 
                 # make folders
