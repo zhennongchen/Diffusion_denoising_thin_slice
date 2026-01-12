@@ -189,7 +189,7 @@ def run(args):
             for j in range(total_predicts):
                 loaded_data[:,:,:,j] = nb.load(os.path.join(made_predicts[j],'pred_img.nii.gz')).get_fdata()
 
-            for avg_num in [10]:#[2,4,6,8,10,12,14,16,18,20]:#range(1,total_predicts+1):
+            for avg_num in [20]:#[2,4,6,8,10,12,14,16,18,20]:#range(1,total_predicts+1):
                 print('avg_num:', avg_num)
                 predicts_avg = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2], avg_num))
                 print('predict_num:', avg_num)

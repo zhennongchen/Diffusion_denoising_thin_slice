@@ -10,7 +10,7 @@
 
 # # ============ USER SETTINGS ============
 TRIAL="unsupervised_gaussian_PCCT"
-MODE="pred"   # or: avg
+MODE="avg"   # or: avg
 SLICE_RANGE="30-80"
 # =======================================
 
