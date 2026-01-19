@@ -1,44 +1,31 @@
 import sys 
 sys.path.append('/host/d/Github')
 import os
-import torch
-import numpy as np 
-import Diffusion_denoising_thin_slice.Thinslice_experiments.denoising_diffusion_pytorch.denoising_diffusion_pytorch.conditional_diffusion as ddpm
+import torch 
+import numpy as np
+import Diffusion_denoising_thin_slice.noise2noise.model as noise2noise
 import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator_thinslice as Generator
 
-trial_name = 'unsupervised_gaussian_PCCT'
-problem_dimension = '2D'
-supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
+#######################
+trial_name = 'noise2noise_PCCT'
+preload = True
+supervision = 'unsupervised' 
 
-train_batch_size = 10
-preload = False
+pre_trained_model = None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-10.pt')
+start_step = 0
+train_batch_size = 5
 
-# bias  
-beta = 0
-lpips_weight = 0#0.2
-edge_weight = 0#0.05
-
-# model condition 
-# if 'mean' in trial_name: condition on current slice, target the mean of neighboring slices
-# else: condition on neighboring slices, target the current slice
-condition_channel = 1 if (supervision == 'supervised') or ('mean' in trial_name) else 2
-
-pre_trained_model = os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-103.pt') #None
-start_step = 103
 image_size = [512,512]
-num_patches_per_slice = 2
-patch_size = [128,128]
- 
-objective = 'pred_x0'
+num_patches_per_slice = 1
+patch_size = [512,512] # if GPU memory is limited, you can reduce the patch size
 
 histogram_equalization = True
 background_cutoff = -1000
 maximum_cutoff = 2000
 normalize_factor = 'equation'
-
-###########################
+#######################
 # define train
 build_sheet =  Build_list.Build_thinsliceCT(os.path.join('/host/d/Data/PCCT/Patient_lists/PCCT_split.xlsx'))
 _,_,_,_, condition_list_train, _ = build_sheet.__build__(batch_list = [0]) 
@@ -53,36 +40,26 @@ x0_list_val = condition_list_val
 print('train:', x0_list_train.shape, condition_list_train.shape, 'val:', x0_list_val.shape, condition_list_val.shape)
 print(x0_list_train[0:5], condition_list_train[0:5], x0_list_val[0:5], condition_list_val[0:5])
 
-# define u-net and diffusion model
-model = ddpm.Unet(
-    problem_dimension = problem_dimension, 
-    init_dim = 64,
-    out_dim = 1,
-    channels = 1, 
-    conditional_diffusion = True,
-    condition_channels = condition_channel,
 
-    downsample_list = (True, True, True, False),
-    upsample_list = (True, True, True, False),
-    full_attn = (None, None, False, True),)
+# build model
+model = noise2noise.Unet(
+    problem_dimension = '2D',  # '2D' or '3D'
+    input_channels = 1,
+    out_channels = 1,  
+    initial_dim = 16,  # initial feature dimension after first conv layer
+    dim_mults = (2,4,8,16),
+    full_attn_paths = (None, None, False, True), # these are for downsampling and upsampling paths
+    full_attn_bottleneck = True, # this is for the middle bottleneck layer
+    act = 'ReLU',
+)
 
-
-diffusion_model = ddpm.GaussianDiffusion(
-    model,
-    image_size = image_size if num_patches_per_slice == None else patch_size,
-    timesteps = 1000,
-    sampling_timesteps = 250,
-    objective = objective,
-    clip_or_not =False,
-    auto_normalize = False,)
-
-## preload data
+# build generator
+# first we define the image list 
 if preload  == True:
     print('preloading data ...')
     condition_data_train =  ff.preload_data(condition_list_train)
     condition_data_val =  ff.preload_data(condition_list_val)
 
-# generator definition
 generator_train = Generator.Dataset_2D(
         supervision = supervision,
 
@@ -136,21 +113,23 @@ generator_val = Generator.Dataset_2D(
         maximum_cutoff = maximum_cutoff,
         normalize_factor = normalize_factor,)
 
-# start to train
-trainer = ddpm.Trainer(
-    diffusion_model= diffusion_model,
+
+
+# train
+save_models_folder = os.path.join('/host/d/projects/denoising/models', trial_name, 'models');ff.make_folder([os.path.dirname(save_models_folder), save_models_folder])
+trainer = noise2noise.Trainer(
+    model= model,
     generator_train = generator_train,
     generator_val = generator_val,
     train_batch_size = train_batch_size,
-    
-    accum_iter = 1,
-    train_num_steps = 150, # total training epochs
-    results_folder = os.path.join('/host/d/projects/denoising/models', trial_name, 'models'),
+
+    train_num_steps = 100, # total training epochs
+    results_folder = save_models_folder,
    
     train_lr = 1e-4,
-    train_lr_decay_every = 100,#200, 
-    save_models_every = 1,
-    validation_every = 1,)
+    train_lr_decay_every = 200, 
+    save_models_every = 10,
+    validation_every = 10,
+)
 
-
-trainer.train(pre_trained_model=pre_trained_model, start_step= start_step, beta = beta, lpips_weight = lpips_weight, edge_weight = edge_weight)
+trainer.train(pre_trained_model=pre_trained_model, start_step= start_step)
