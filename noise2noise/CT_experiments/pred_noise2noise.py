@@ -11,8 +11,6 @@ import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
 
-
-
 def get_args_parser():
     parser = argparse.ArgumentParser('Diffusion Inference Script')
 
@@ -56,12 +54,18 @@ def run(args):
     background_cutoff = -200
     maximum_cutoff = 250
     normalize_factor = 'equation'
+    print('background cutoff:', background_cutoff, '; maximum cutoff:', maximum_cutoff, '; normalize factor:', normalize_factor)
     #######################
     if args.noise_type == 'gaussian':
-        build_sheet =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v2.xlsx'))
+        build_sheet_v2 =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v2.xlsx'))
+        build_sheet_v3 = Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v3.xlsx'))
+        batch_list, patient_id_list, random_num_list,noise_file_all_list, noise_file_odd_list, _, ground_truth_file_list, slice_num_list = build_sheet_v2.__build__(batch_list = ['train','val','test'])
+        _, _, _, _, _,noise_file_even_list, _, _ = build_sheet_v3.__build__(batch_list = ['train','val','test'])
+
     elif args.noise_type == 'poisson':
         build_sheet =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_poisson_simulation_v2.xlsx'))
-    batch_list, patient_id_list, random_num_list, noise_file_all_list, noise_file_odd_list, noise_file_even_list, ground_truth_file_list, slice_num_list = build_sheet.__build__(batch_list = ['train','val','test'])
+        batch_list, patient_id_list, random_num_list, noise_file_all_list, noise_file_odd_list, noise_file_even_list, ground_truth_file_list, slice_num_list = build_sheet.__build__(batch_list = ['train','val','test'])
+
     print('example of noise file all:', noise_file_all_list[0])
     n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 1)
     print('total number:', n.shape[0])
@@ -74,7 +78,7 @@ def run(args):
         out_channels = 1,  
         initial_dim = 16,  # initial feature dimension after first conv layer
         dim_mults = (2,4,8,16),
-        full_attn_paths = (None, None, False, True), # these are for downsampling and upsampling paths
+        full_attn_paths = (None, None, False,True), # these are for downsampling and upsampling paths
         full_attn_bottleneck = True, # this is for the middle bottleneck layer
         act = 'ReLU',)
 

@@ -9,13 +9,13 @@ import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
 #######################
-trial_name = 'noise2noise_mayo'
+trial_name = 'noise2noise_mayo_poisson'
 preload = True
 supervision = 'unsupervised' 
 
 pre_trained_model = None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-10.pt')
 start_step = 0
-train_batch_size = 1
+train_batch_size = 3
 
 image_size = [512,512]
 num_patches_per_slice = 1
@@ -27,16 +27,16 @@ maximum_cutoff = 250
 normalize_factor = 'equation'
 #######################
 # define train
-build_sheet_v2 =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v2.xlsx'))
-build_sheet_v3 = Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v3.xlsx'))
+build_sheet_v2 =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_poisson_simulation_v2.xlsx'))
+# build_sheet_v3 = Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v3.xlsx'))
 
 # define train patient list
-_, _, _, _, noise_file_odd_list_train, _, gt_file_list_train, slice_num_list_train = build_sheet_v2.__build__(batch_list = ['train']) 
-_, _, _, _, _, noise_file_even_list_train, _, _ = build_sheet_v3.__build__(batch_list = ['train'])
+_, _, _, _, noise_file_odd_list_train, noise_file_even_list_train, gt_file_list_train, slice_num_list_train = build_sheet_v2.__build__(batch_list = ['train']) 
+# _, _, _, _, _, noise_file_even_list_train, _, _ = build_sheet_v3.__build__(batch_list = ['train'])
 
 # define val patient list
-_, _, _, _, noise_file_odd_list_val, _, gt_file_list_val, slice_num_list_val = build_sheet_v2.__build__(batch_list = ['val']) 
-_, _, _, _, _, noise_file_even_list_val, _, _ = build_sheet_v3.__build__(batch_list = ['val'])
+_, _, _, _, noise_file_odd_list_val, noise_file_even_list_val, gt_file_list_val, slice_num_list_val = build_sheet_v2.__build__(batch_list = ['val']) 
+# _, _, _, _, _, noise_file_even_list_val, _, _ = build_sheet_v3.__build__(batch_list = ['val'])
 
 print('number of training cases:', gt_file_list_train.shape[0], '; number of validation cases:', gt_file_list_val.shape[0])
 
