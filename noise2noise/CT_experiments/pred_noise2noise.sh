@@ -11,12 +11,12 @@
 # # ============ USER SETTINGS ============
 TRIAL="noise2noise_mayo_poisson"
 INPUT="both"   # or: odd / even / both / all
-RANGE="100-110"
+RANGE="100-200"
 NOISETYPE="poisson"  # or: gaussian
 # =======================================
 
 # list of epochs you want to run
-EPOCH_LIST=(10)
+EPOCH_LIST=(70)
 
 # loop through epochs
 for EPOCH in "${EPOCH_LIST[@]}"; do
