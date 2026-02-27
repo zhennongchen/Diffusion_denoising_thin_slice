@@ -9,13 +9,13 @@
 # echo "Finished all jobs"
 
 # # ============ USER SETTINGS ============
-TRIAL="unsupervised_gaussian_PCCT"
+TRIAL="unsupervised_gaussian_PCCT_nohist_beta1_lpips0.025_cutoff-1000to1000"
 MODE="avg"   # or: avg
 SLICE_RANGE="30-80"
 # =======================================
 
 # list of epochs you want to run
-EPOCH_LIST=(118) #150 97)
+EPOCH_LIST=(130) #150 97)
 
 # loop through epochs
 for EPOCH in "${EPOCH_LIST[@]}"; do

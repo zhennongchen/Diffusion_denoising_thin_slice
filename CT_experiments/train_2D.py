@@ -10,7 +10,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'supervised_poisson_3'
+trial_name = 'supervised_gaussian_mayo'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'
 adjacent_condition = True if 'adjacent' in trial_name else False
@@ -25,7 +25,7 @@ edge_weight = 0#0.05
 
 # model condition 
 condition_channel = 1 if not adjacent_condition else 2
-train_batch_size = 3
+train_batch_size = 5
 objective = 'pred_x0' #if 'noise' not in trial_name else 'pred_noise'
 
 pre_trained_model =  None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-216.pt') #None
@@ -171,7 +171,7 @@ trainer = ddpm.Trainer(
     train_batch_size = train_batch_size,
     
     accum_iter = 1,
-    train_num_steps = 400, # total training epochs
+    train_num_steps = 200, # total training epochs
     results_folder = save_models_folder,
    
     train_lr = 1e-4,

@@ -8,7 +8,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator_thinslice as Generator
 
-trial_name = 'unsupervised_gaussian_PCCT'
+trial_name = 'unsupervised_gaussian_PCCT_nohist_beta1_lpips0.025_cutoff-1000to1000'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
@@ -16,8 +16,8 @@ train_batch_size = 10
 preload = False
 
 # bias  
-beta = 0
-lpips_weight = 0#0.2
+beta = 1
+lpips_weight = 0.025#0.2
 edge_weight = 0#0.05
 
 # model condition 
@@ -25,17 +25,17 @@ edge_weight = 0#0.05
 # else: condition on neighboring slices, target the current slice
 condition_channel = 1 if (supervision == 'supervised') or ('mean' in trial_name) else 2
 
-pre_trained_model = os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-103.pt') #None
-start_step = 103
+pre_trained_model = os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-150.pt') #None
+start_step = 150
 image_size = [512,512]
 num_patches_per_slice = 2
 patch_size = [128,128]
  
 objective = 'pred_x0'
 
-histogram_equalization = True
+histogram_equalization = False
 background_cutoff = -1000
-maximum_cutoff = 2000
+maximum_cutoff = 1000
 normalize_factor = 'equation'
 
 ###########################
@@ -144,13 +144,13 @@ trainer = ddpm.Trainer(
     train_batch_size = train_batch_size,
     
     accum_iter = 1,
-    train_num_steps = 150, # total training epochs
+    train_num_steps = 250, # total training epochs
     results_folder = os.path.join('/host/d/projects/denoising/models', trial_name, 'models'),
    
     train_lr = 1e-4,
     train_lr_decay_every = 100,#200, 
-    save_models_every = 1,
-    validation_every = 1,)
+    save_models_every = 5,
+    validation_every = 10,)
 
 
 trainer.train(pre_trained_model=pre_trained_model, start_step= start_step, beta = beta, lpips_weight = lpips_weight, edge_weight = edge_weight)

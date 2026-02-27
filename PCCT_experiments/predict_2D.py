@@ -55,9 +55,9 @@ def run(args):
     objective = 'pred_x0'
     sampling_timesteps = 100
 
-    histogram_equalization = True
+    histogram_equalization = False
     background_cutoff = -1000
-    maximum_cutoff = 2000
+    maximum_cutoff = 1000
     normalize_factor = 'equation'
     clip_range = [-1,1]
 
@@ -119,7 +119,7 @@ def run(args):
         if do_pred_or_avg == 'pred':
 
             # get the condition image
-            for iteration in range(11,21):
+            for iteration in range(5,9):
                 print('iteration:', iteration)
 
                 # make folders
@@ -169,9 +169,9 @@ def run(args):
 
             save_folder_avg = os.path.join(save_folder, patient_id, 'epoch' + str(epoch)+'avg'); os.makedirs(save_folder_avg, exist_ok=True)
 
-            if os.path.isfile(os.path.join(save_folder_avg, 'pred_img_scans20.nii.gz')):
-                print('already done')
-                continue
+            # if os.path.isfile(os.path.join(save_folder_avg, 'pred_img_scans20.nii.gz')):
+            #     print('already done')
+            #     continue
     
             made_predicts = ff.sort_timeframe(ff.find_all_target_files(['epoch' + str(epoch)+'_*'], os.path.join(save_folder, patient_id)),0,'_','/')
             if len(made_predicts) == 0:
@@ -189,8 +189,11 @@ def run(args):
             for j in range(total_predicts):
                 loaded_data[:,:,:,j] = nb.load(os.path.join(made_predicts[j],'pred_img.nii.gz')).get_fdata()
 
-            for avg_num in [20]:#[2,4,6,8,10,12,14,16,18,20]:#range(1,total_predicts+1):
+            for avg_num in [8]:#[2,4,6,8,10,12,14,16,18,20]:#range(1,total_predicts+1):
                 print('avg_num:', avg_num)
+                if os.path.isfile(os.path.join(save_folder_avg, 'pred_img_scans' + str(avg_num) + '.nii.gz')):
+                    print('already done')
+                    continue
                 predicts_avg = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2], avg_num))
                 print('predict_num:', avg_num)
                 for j in range(avg_num):
