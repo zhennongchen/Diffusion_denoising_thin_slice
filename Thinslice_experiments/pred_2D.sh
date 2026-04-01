@@ -8,7 +8,7 @@ RANGE="30-80"
 
 # list of epochs you want to run
 EPOCH_LIST=(61) #150 97)
-NFE_LIST=(2 3 5 10 50)
+NFE_LIST=(2 3 50)
 
 # loop through epochs then loop through NFE values
 for EPOCH in "${EPOCH_LIST[@]}"; do

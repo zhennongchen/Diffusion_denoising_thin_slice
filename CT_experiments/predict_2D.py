@@ -27,6 +27,10 @@ def get_args_parser():
     
     parser.add_argument('--slice_range', type=str, default="all",
                         help='slice range such as 100-200 or None for all slices')
+
+    parser.add_argument('--NFE', type=int, default=50,
+                        help='number of function evaluations (sampling steps)')
+
         
 
     return parser
@@ -43,11 +47,11 @@ def run(args):
 
     study_folder = '/host/d/projects/denoising/models'
     trained_model_filename = os.path.join(study_folder,trial_name, 'models/model-' + str(epoch)+ '.pt')
-    save_folder = os.path.join(study_folder, trial_name, 'pred_images_input_'+ input_condition); os.makedirs(save_folder, exist_ok=True)
+    save_folder = os.path.join(study_folder, trial_name, 'pred_images_input_'+ input_condition+'_NFE'+str(args.NFE)); os.makedirs(save_folder, exist_ok=True)
 
     image_size = [512,512] 
     objective = 'pred_x0' 
-    sampling_timesteps = 50 # 100
+    sampling_timesteps = args.NFE # 100
 
     histogram_equalization = False
     background_cutoff = -200

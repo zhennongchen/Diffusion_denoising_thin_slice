@@ -9,25 +9,31 @@
 # echo "Finished all jobs"
 
 # # ============ USER SETTINGS ============
-TRIAL="supervised_gaussian_mayo"
+TRIAL="unsupervised_gaussian_mayo"
 MODE="pred"   # or: avg
-INPUT="all"   # or: odd / even / both / all
+INPUT="both"   # or: odd / even / both / all
 RANGE="100-200"
 # =======================================
 
 # list of epochs you want to run
-EPOCH_LIST=(185) #150 97)
+EPOCH_LIST=(105) #150 97)
+NFE_LIST=(2 3 5 10 50)
 
-# loop through epochs
+# loop through epochs then loop through NFE values
 for EPOCH in "${EPOCH_LIST[@]}"; do
     echo "Running epoch $EPOCH ..."
+    for NFE in "${NFE_LIST[@]}"; do
+        echo "Running NFE $NFE ..."
     
     python3 predict_2D.py \
         --trial_name $TRIAL \
         --epoch $EPOCH \
         --mode $MODE \
         --input $INPUT \
-        --slice_range $RANGE
+        --slice_range $RANGE \
+        --NFE $NFE
+    done
+
 done
 
 echo "Finished all jobs."
