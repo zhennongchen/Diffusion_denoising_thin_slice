@@ -52,7 +52,7 @@ def run(args):
     # target = 'mean' if 'mean' in trial_name else 'current'
 
     image_size = [512,512] 
-    objective = 'pred_x0'
+    objective = 'pred_noise'
     sampling_timesteps = args.NFE
 
     histogram_equalization = True
@@ -88,7 +88,7 @@ def run(args):
         image_size = image_size,
         timesteps = 1000,           # number of steps
         sampling_timesteps = sampling_timesteps,    # number of sampling timesteps (using ddim for faster inference [see citation for ddim paper])
-        ddim_sampling_eta = 1.,
+        ddim_sampling_eta = 0.,
         force_ddim = False,
         auto_normalize=False,
         objective = objective,

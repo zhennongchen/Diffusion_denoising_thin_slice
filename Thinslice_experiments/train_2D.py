@@ -8,7 +8,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator_thinslice as Generator
 
-trial_name = 'supervised_gaussian_brainCT' 
+trial_name = 'unsupervised_gaussian_brainCT_predict_noise' 
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
@@ -22,13 +22,13 @@ edge_weight = 0#0.05
 # else: condition on neighboring slices, target the current slice
 condition_channel = 1 if (supervision == 'supervised') or ('mean' in trial_name) else 2
 
-pre_trained_model = None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-2640.pt') #None
-start_step = 0#2640
+pre_trained_model = os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-45.pt') #None
+start_step = 45#2640
 image_size = [512,512]
 num_patches_per_slice = 2
 patch_size = [128,128]
 
-objective = 'pred_x0'
+objective = 'pred_noise'
 
 histogram_equalization = True
 background_cutoff = -1000
