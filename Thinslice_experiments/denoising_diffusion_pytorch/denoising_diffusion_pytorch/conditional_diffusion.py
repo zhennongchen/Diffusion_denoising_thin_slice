@@ -942,16 +942,16 @@ class GaussianDiffusion(nn.Module):
             
             pred = self.model_predictions(img, time_cond, condition = condition)
 
-            bins = np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins.npy')
-            bins_mapped = np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped.npy')
+            # bins = np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins.npy')
+            # bins_mapped = np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_mapped.npy')
 
             if time_next < 0:
                 img = pred.pred_x_start
                 imgs.append(img)
-                img_save =torch.clone(img).cpu().numpy().squeeze()
-                img_save = Data_processing.normalize_image(img_save, normalize_factor = 'equation', image_max = 2000, image_min = -1000, invert = True)
-                img_save = Data_processing.apply_transfer_to_img(img_save, bins, bins_mapped, reverse = True)
-                nb.save(nb.Nifti1Image(img_save, np.eye(4)), os.path.join('/host/d/projects/denoising/models', f'img_{time}.nii.gz'))
+                # img_save =torch.clone(img).cpu().numpy().squeeze()
+                # img_save = Data_processing.normalize_image(img_save, normalize_factor = 'equation', image_max = 2000, image_min = -1000, invert = True)
+                # img_save = Data_processing.apply_transfer_to_img(img_save, bins, bins_mapped, reverse = True)
+                # nb.save(nb.Nifti1Image(img_save, np.eye(4)), os.path.join('/host/d/projects/denoising/models', f'img_{time}.nii.gz'))
                 continue
 
             alpha = self.alphas_cumprod[time]
@@ -962,22 +962,22 @@ class GaussianDiffusion(nn.Module):
 
             noise = torch.randn_like(img)
 
-            x_start = torch.clone(pred.pred_x_start).cpu().numpy().squeeze()
-            x_start = Data_processing.normalize_image(x_start, normalize_factor = 'equation', image_max = 2000, image_min = -1000, invert = True)
-            x_start = Data_processing.apply_transfer_to_img(x_start, bins, bins_mapped,reverse = True)
-            nb.save(nb.Nifti1Image(x_start, np.eye(4)), os.path.join('/host/d/projects/denoising/models', f'x_start_{time}.nii.gz') )
+            # x_start = torch.clone(pred.pred_x_start).cpu().numpy().squeeze()
+            # x_start = Data_processing.normalize_image(x_start, normalize_factor = 'equation', image_max = 2000, image_min = -1000, invert = True)
+            # x_start = Data_processing.apply_transfer_to_img(x_start, bins, bins_mapped,reverse = True)
+            # nb.save(nb.Nifti1Image(x_start, np.eye(4)), os.path.join('/host/d/projects/denoising/models', f'x_start_{time}.nii.gz') )
 
             img = pred.pred_x_start * alpha_next.sqrt() + \
                   c * pred.pred_noise + \
                   sigma * noise
             imgs.append(img)
 
-            # save img using nb
-            img_save =torch.clone(img).cpu().numpy().squeeze()
-            img_save = Data_processing.normalize_image(img_save, normalize_factor = 'equation', image_max = 2000, image_min = -1000, invert = True)
-            img_save = Data_processing.apply_transfer_to_img(img_save, bins, bins_mapped, reverse = True)
+            # # save img using nb
+            # img_save =torch.clone(img).cpu().numpy().squeeze()
+            # img_save = Data_processing.normalize_image(img_save, normalize_factor = 'equation', image_max = 2000, image_min = -1000, invert = True)
+            # img_save = Data_processing.apply_transfer_to_img(img_save, bins, bins_mapped, reverse = True)
             
-            nb.save(nb.Nifti1Image(img_save, np.eye(4)), os.path.join('/host/d/projects/denoising/models', f'img_{time}.nii.gz'))
+            # nb.save(nb.Nifti1Image(img_save, np.eye(4)), os.path.join('/host/d/projects/denoising/models', f'img_{time}.nii.gz'))
 
         ret = img #if not return_all_timesteps else torch.stack(imgs, dim = 1)
         ret = self.unnormalize(ret)

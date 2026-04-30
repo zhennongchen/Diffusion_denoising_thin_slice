@@ -121,7 +121,7 @@ def run(args):
             print('condition_file:', condition_file, 'shape: ', nb.load(condition_file).get_fdata().shape)
             condition_img = nb.load(condition_file).get_fdata()[:,:,slice_start:slice_end]
 
-            for iteration in range(1,21):
+            for iteration in range(1,21):#1):
                 print('iteration:', iteration)
 
                 # make folders
@@ -130,8 +130,13 @@ def run(args):
 
 
                 if os.path.isfile(os.path.join(save_folder_case, 'pred_img.nii.gz')):
-                    print('already done')
-                    continue
+                    a = nb.load(os.path.join(save_folder_case, 'pred_img.nii.gz')).get_fdata()
+                    slice_numm = a.shape[2]
+                    if slice_numm == slice_end - slice_start:
+                        print('already done')
+                        continue
+                    else:
+                        print('redo')
 
                 # generator
                 generator = Generator.Dataset_2D(
@@ -188,9 +193,9 @@ def run(args):
             for jj in range(len(made_predicts)):
                 total_predicts += os.path.isfile(os.path.join(made_predicts[jj],'pred_img.nii.gz'))
             print('total made predicts:', total_predicts)
-            # if total_predicts != 20:
-            #     print('skip, not enough predicts')
-            #     continue
+            if total_predicts != 20:
+                print('skip, not enough predicts')
+                continue
 
             loaded_data = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2], total_predicts))
             for j in range(total_predicts):
