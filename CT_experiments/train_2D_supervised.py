@@ -10,7 +10,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'unsupervised_gaussian_mayo_highnoise'
+trial_name = 'supervised_poisson_mayo_highnoise'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'
 adjacent_condition = True if 'adjacent' in trial_name else False
@@ -25,11 +25,11 @@ edge_weight = 0#0.05
 
 # model condition 
 condition_channel = 1 if not adjacent_condition else 2
-train_batch_size = 3
+train_batch_size = 2
 objective = 'pred_x0' #if 'noise' not in trial_name else 'pred_noise'
 
-pre_trained_model =  None#os.path.join('/host/d/projects/denoising/models', 'unsupervised_gaussian_mayo', 'models/model-105.pt') #None
-start_step = 0#216
+pre_trained_model =  os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-120.pt') #None
+start_step = 120
 
 # image condition
 image_size = [512,512]
@@ -45,12 +45,12 @@ normalize_factor = 'equation'
 ######Patient list
 # define train
 if 'poisson' in trial_name:
-    build_sheet =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_poisson_simulation_v2.xlsx'))
+    build_sheet =  Build_list.Build(os.path.join('/host/e/D/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_poisson_simulation_highnoise_v2.xlsx'))
 elif 'gaussian' in trial_name:
     build_sheet =  Build_list.Build(os.path.join('/host/e/D/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_highnoise_v2.xlsx'))
 
 # define train patient list
-_, _, _, noise_file_all_list_train, noise_file_odd_list_train, noise_file_even_list_train, gt_file_list_train, slice_num_list_train = build_sheet.__build__(batch_list = ['train','val']) 
+_, _, _, noise_file_all_list_train, noise_file_odd_list_train, noise_file_even_list_train, gt_file_list_train, slice_num_list_train = build_sheet.__build__(batch_list = ['train']) 
 # noise_file_all_list_train = noise_file_all_list_train[0:1]
 # noise_file_odd_list_train = noise_file_odd_list_train[0:1]
 # noise_file_even_list_train = noise_file_even_list_train[0:1]
@@ -58,7 +58,7 @@ _, _, _, noise_file_all_list_train, noise_file_odd_list_train, noise_file_even_l
 # slice_num_list_train = slice_num_list_train[0:1]
 
 # define val patient list
-_, _, _,  noise_file_all_list_val, noise_file_odd_list_val, noise_file_even_list_val,  gt_file_list_val, slice_num_list_val = build_sheet.__build__(batch_list = ['test'])
+_, _, _,  noise_file_all_list_val, noise_file_odd_list_val, noise_file_even_list_val,  gt_file_list_val, slice_num_list_val = build_sheet.__build__(batch_list = ['val'])
 
 print('number of training cases:', gt_file_list_train.shape[0], '; number of validation cases:', gt_file_list_val.shape[0])
 
@@ -170,7 +170,7 @@ trainer = ddpm.Trainer(
     generator_val = generator_val,
     train_batch_size = train_batch_size,
     
-    accum_iter =5,
+    accum_iter = 3,
     train_num_steps = 200, # total training epochs
     results_folder = save_models_folder,
    

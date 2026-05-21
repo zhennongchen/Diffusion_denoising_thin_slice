@@ -22,6 +22,10 @@ def get_args_parser():
     parser.add_argument('--mode', type=str, required = True, 
                         help='predict mode: avg or pred')
     
+    # add objective
+    parser.add_argument('--objective', type=str, default='pred_x0', choices=['pred_x0', 'pred_noise'],
+                        help='objective for the diffusion model, pred_x0 or pred_noise')
+    
     parser.add_argument('--input', type=str, default='both', choices=['both', 'odd', 'even', 'all'],
                         help='input condition: both, odd, even, all')
     
@@ -29,7 +33,7 @@ def get_args_parser():
                         help='slice range such as 100-200 or None for all slices')
 
     parser.add_argument('--NFE', type=int, default=50,
-                        help='number of function evaluations (sampling steps)')
+                            help='number of function evaluations (sampling steps)')
 
         
 
@@ -47,10 +51,10 @@ def run(args):
 
     study_folder = '/host/d/projects/denoising/models'
     trained_model_filename = os.path.join(study_folder,trial_name, 'models/model-' + str(epoch)+ '.pt')
-    save_folder = os.path.join(study_folder, trial_name, 'pred_images_input_'+ input_condition+'_NFE'+str(args.NFE)); os.makedirs(save_folder, exist_ok=True)
+    save_folder = os.path.join(study_folder, trial_name, 'pred_images_input_'+ input_condition); os.makedirs(save_folder, exist_ok=True)
 
     image_size = [512,512] 
-    objective = 'pred_x0' 
+    objective = args.objective
     sampling_timesteps = args.NFE # 100
 
     histogram_equalization = False
@@ -59,7 +63,7 @@ def run(args):
     normalize_factor = 'equation'
 
     ###########
-    build_sheet =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v2.xlsx'))
+    build_sheet =  Build_list.Build(os.path.join('/host/e/D/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_highnoise_v2.xlsx'))
     _, patient_id_list, random_num_list, noise_file_all_list, noise_file_odd_list, noise_file_even_list, ground_truth_file_list, _ = build_sheet.__build__(batch_list = ['test'])
     print('total cases:', patient_id_list.shape[0])
     n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 1)
@@ -183,6 +187,9 @@ def run(args):
                     pred_img_final = np.mean(pred_img_final, axis = 0)
                     assert pred_img_final.shape == pred_img.shape
                     nb.save(nb.Nifti1Image(pred_img_final, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
+                    # remove the two condition-specific prediction files to save space
+                    for condition_i in range(0,len(condition_files)):
+                        os.remove(os.path.join(save_folder_case, 'pred_img_' + condition_names[condition_i] + '.nii.gz'))
 
 
                 if iteration == 1:
@@ -215,7 +222,7 @@ def run(args):
             for j in range(total_predicts):
                 loaded_data[:,:,:,j] = nb.load(os.path.join(made_predicts[j],'pred_img.nii.gz')).get_fdata()
 
-            for avg_num in [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]:#range(1,total_predicts+1):
+            for avg_num in [2,3,5,10,20]:#range(1,total_predicts+1):
                 print('avg_num:', avg_num)
                 predicts_avg = np.zeros((condition_img.shape[0], condition_img.shape[1], condition_img.shape[2], avg_num))
                 print('predict_num:', avg_num)

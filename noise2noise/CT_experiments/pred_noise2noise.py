@@ -57,14 +57,14 @@ def run(args):
     print('background cutoff:', background_cutoff, '; maximum cutoff:', maximum_cutoff, '; normalize factor:', normalize_factor)
     #######################
     if args.noise_type == 'gaussian':
-        build_sheet_v2 =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v2.xlsx'))
-        build_sheet_v3 = Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_v3.xlsx'))
-        batch_list, patient_id_list, random_num_list,noise_file_all_list, noise_file_odd_list, _, ground_truth_file_list, slice_num_list = build_sheet_v2.__build__(batch_list = ['train','val','test'])
-        _, _, _, _, _,noise_file_even_list, _, _ = build_sheet_v3.__build__(batch_list = ['train','val','test'])
+        build_sheet_v2 =  Build_list.Build(os.path.join('/host/e/D/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_highnoise_v2.xlsx'))
+        build_sheet_v3 = Build_list.Build(os.path.join('/host/e/D/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_highnoise_v3.xlsx'))
+        batch_list, patient_id_list, random_num_list,noise_file_all_list, noise_file_odd_list, _, ground_truth_file_list, slice_num_list = build_sheet_v2.__build__(batch_list = ['train','val'])
+        _, _, _, _, _,noise_file_even_list, _, _ = build_sheet_v3.__build__(batch_list = ['train','val'])
 
     elif args.noise_type == 'poisson':
-        build_sheet =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_poisson_simulation_v2.xlsx'))
-        batch_list, patient_id_list, random_num_list, noise_file_all_list, noise_file_odd_list, noise_file_even_list, ground_truth_file_list, slice_num_list = build_sheet.__build__(batch_list = ['train','val','test'])
+        build_sheet =  Build_list.Build(os.path.join('/host/e/D/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_poisson_simulation_highnoise_v2.xlsx'))
+        batch_list, patient_id_list, random_num_list, noise_file_all_list, noise_file_odd_list, noise_file_even_list, ground_truth_file_list, slice_num_list = build_sheet.__build__(batch_list = ['test'])
 
     print('example of noise file all:', noise_file_all_list[0])
     n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 1)
@@ -84,8 +84,8 @@ def run(args):
 
     # main
     G = Generator.Dataset_2D
-    for i in range(0,n.shape[0]):
-        patient_id = patient_id_list[n[i]]
+    for i in range(5,n.shape[0]):
+        patient_id= patient_id_list[n[i]]
         random_num = random_num_list[n[i]]
         noise_file_all = noise_file_all_list[n[i]]
         noise_file_odd = noise_file_odd_list[n[i]]
@@ -145,9 +145,9 @@ def run(args):
                 condition_list = np.array([condition_file]),
                 image_size = image_size,
 
-                num_slices_per_image = 100,#slice_num, 
+                num_slices_per_image = slice_num,
                 random_pick_slice = False,
-                slice_range = [100,200],# None,
+                slice_range = None if args.slice_range is None else [slice_start, slice_end],
                 
                 histogram_equalization = histogram_equalization,
                 bins = None if histogram_equalization == False else np.load('/host/d/Github/Diffusion_denoising_thin_slice/help_data/histogram_equalization/bins_lowdoseCT.npy'),
@@ -176,6 +176,9 @@ def run(args):
             pred_img_final = np.mean(pred_img_final, axis = 0)
             assert pred_img_final.shape == pred_img.shape
             nb.save(nb.Nifti1Image(pred_img_final, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
+            # remove the two condition-specific pred images
+            os.remove(os.path.join(save_folder_case, 'pred_img_' + condition_names[0] + '.nii.gz'))
+            os.remove(os.path.join(save_folder_case, 'pred_img_' + condition_names[1] + '.nii.gz'))
 
         # save condition
         # nb.save(nb.Nifti1Image(condition_img, affine),  os.path.join(save_folder_case, 'condition_img.nii.gz'))

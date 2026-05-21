@@ -1408,7 +1408,7 @@ class Sampler(object):
         with torch.inference_mode():
             
             for z_slice in range(0,condition_img.shape[-1]):
-                print('now is z-slice: ', z_slice + 1, ' / ', condition_img.shape[-1])
+                # print('now is z-slice: ', z_slice + 1, ' / ', condition_img.shape[-1])
                 datas = next(self.cycle_dl)
                 data_condition = datas[1]
                     

@@ -21,6 +21,8 @@ def get_args_parser():
                         help='epoch number of the model')
     parser.add_argument('--mode', type=str, required = True, 
                         help='predict mode: avg or pred')
+    parser.add_argument('--objective', type=str, default='pred_x0', choices=['pred_x0', 'pred_noise'],
+                        help='objective for the diffusion model, pred_x0 or pred_noise')
     
     parser.add_argument('--slice_range', type=str, default="all",
                         help='slice range such as 100-200 or None for all slices')
@@ -52,7 +54,7 @@ def run(args):
     # target = 'mean' if 'mean' in trial_name else 'current'
 
     image_size = [512,512] 
-    objective = 'pred_noise'
+    objective = args.objective
     sampling_timesteps = args.NFE
 
     histogram_equalization = True
@@ -63,7 +65,7 @@ def run(args):
 
 
     ###########
-    build_sheet =  Build_list.Build_thinsliceCT(os.path.join('/host/d/Data/brain_CT/Patient_lists/fixedCT_static_simulation_train_test_gaussian_xjtlu.xlsx'))
+    build_sheet =  Build_list.Build_thinsliceCT(os.path.join('/host/e/D/Data/brain_CT/Patient_lists/fixedCT_static_simulation_train_test_gaussian_xjtlu.xlsx'))
     _,patient_id_list,patient_subid_list,random_num_list, condition_list, x0_list = build_sheet.__build__(batch_list = [5]) 
     print('total cases:', patient_id_list.shape[0])
     n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 2)

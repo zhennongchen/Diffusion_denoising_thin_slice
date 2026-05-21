@@ -9,15 +9,15 @@
 # echo "Finished all jobs"
 
 # # ============ USER SETTINGS ============
-TRIAL="unsupervised_gaussian_mayo"
+TRIAL="unsupervised_gaussian_brainCT_predict_noise"
 MODE="pred"   # or: avg
 INPUT="both"   # or: odd / even / both / all
-RANGE="100-200"
+RANGE="150-200"
 # =======================================
 
 # list of epochs you want to run
-EPOCH_LIST=(105) #150 97)
-NFE_LIST=(2 3 5 10 50)
+EPOCH_LIST=(140) #150 97)
+NFE_LIST=(50)
 
 # loop through epochs then loop through NFE values
 for EPOCH in "${EPOCH_LIST[@]}"; do

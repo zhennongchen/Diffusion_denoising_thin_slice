@@ -7,7 +7,7 @@ import pandas as pd
 import os
 import copy
 import Diffusion_denoising_thin_slice.simulation.ct_basic_PCD as ct
-import Diffusion_denoising_thin_slice.functions_collection as ff
+import Diffusion_denoising_thin_slice.functions_collection as ff 
 import ct_projector.projector.numpy.parallel as ct_para
 
 main_path = '/mnt/camca_NAS/denoising/Data'
