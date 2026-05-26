@@ -11,7 +11,7 @@ import Diffusion_denoising_thin_slice.Build_lists.prepare_sliced_data as prepare
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'distill_2'
+trial_name = 'distill_mayo_highnoise'
 problem_dimension = '2D'
 supervision = 'supervised' 
 adjacent_condition = True if 'adjacent' in trial_name else False
@@ -48,7 +48,7 @@ prepare_sliced_data.prepare_sliced_data()
 
 ######Patient list
 # define train
-build_sheet =  Build_list.Build(os.path.join('/host/d/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_distill_v2.xlsx'))
+build_sheet =  Build_list.Build(os.path.join('/host/e/D/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_distill_highnoise_v2.xlsx'))
 
 # define train patient list
 _, _, _, noise_file_all_list_train, noise_file_odd_list_train, noise_file_even_list_train, gt_file_list_train, slice_num_list_train,generated_20_list_train,generated_10_list_train = build_sheet.__build__(batch_list = ['train'], distill=True)
@@ -144,9 +144,9 @@ generator_val = G(
         condition_list = condition_list_val,
         image_size = image_size,
 
-        num_slices_per_image = 50,
+        num_slices_per_image = 30,
         random_pick_slice = False,
-        slice_range = [30,80],# [100,190],
+        slice_range = [0,30],
 
         num_patches_per_slice = 1,
         patch_size = [512,512],

@@ -54,7 +54,7 @@ def run(args):
     save_folder = os.path.join(study_folder, trial_name, 'pred_images_input_'+ input_condition); os.makedirs(save_folder, exist_ok=True)
 
     image_size = [512,512] 
-    objective = args.objective
+    objective = args.objective #'pred_x0' #if 'noise' not in trial_name else 'pred_noise'
     sampling_timesteps = args.NFE # 100
 
     histogram_equalization = False
@@ -64,7 +64,7 @@ def run(args):
 
     ###########
     build_sheet =  Build_list.Build(os.path.join('/host/e/D/Data/low_dose_CT/Patient_lists/mayo_low_dose_CT_gaussian_simulation_highnoise_v2.xlsx'))
-    _, patient_id_list, random_num_list, noise_file_all_list, noise_file_odd_list, noise_file_even_list, ground_truth_file_list, _ = build_sheet.__build__(batch_list = ['test'])
+    _, patient_id_list, random_num_list, noise_file_all_list, noise_file_odd_list, noise_file_even_list, ground_truth_file_list, _ = build_sheet.__build__(batch_list = ['train','val'])
     print('total cases:', patient_id_list.shape[0])
     n = ff.get_X_numbers_in_interval(total_number = patient_id_list.shape[0],start_number = 0,end_number = 1, interval = 1)
     print('total number:', n.shape[0])
@@ -95,7 +95,7 @@ def run(args):
 
 
     G = Generator.Dataset_2D_adjacent_slices  if 'adjacent' in trial_name else Generator.Dataset_2D
-    for i in range(0,n.shape[0]):
+    for i in range(5,n.shape[0]):
         patient_id, random_num,noise_file_all, noise_file_odd, noise_file_even, gt_file = patient_id_list[n[i]], random_num_list[n[i]], noise_file_all_list[n[i]], noise_file_odd_list[n[i]], noise_file_even_list[n[i]], ground_truth_file_list[n[i]]
         
         if supervision == 'supervised':
@@ -214,6 +214,7 @@ def run(args):
             total_predicts = 0
             for jj in range(len(made_predicts)):
                 total_predicts += os.path.isfile(os.path.join(made_predicts[jj],'pred_img.nii.gz'))
+            print('total made predicts:', total_predicts)
             if total_predicts != 20:
                 print('skip, not enough predicts')
                 continue
@@ -222,7 +223,7 @@ def run(args):
             for j in range(total_predicts):
                 loaded_data[:,:,:,j] = nb.load(os.path.join(made_predicts[j],'pred_img.nii.gz')).get_fdata()
 
-            for avg_num in [2,3,5,10,20]:#range(1,total_predicts+1):
+            for avg_num in [10,20]:#range(1,total_predicts+1):
                 print('avg_num:', avg_num)
                 predicts_avg = np.zeros((condition_img.shape[0], condition_img.shape[1], condition_img.shape[2], avg_num))
                 print('predict_num:', avg_num)

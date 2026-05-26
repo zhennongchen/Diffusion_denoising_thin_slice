@@ -2,7 +2,7 @@
 
 # # ============ USER SETTINGS ============
 TRIAL="unsupervised_gaussian_brainCT_predict_noise"
-MODE="pred"   # or: avg
+MODE="avg"   # or: avg
 OBJECTIVE="pred_noise"  # or: pred_x0
 RANGE="30-80"
 # =======================================
