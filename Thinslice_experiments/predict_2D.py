@@ -90,7 +90,7 @@ def run(args):
         image_size = image_size,
         timesteps = 1000,           # number of steps
         sampling_timesteps = sampling_timesteps,    # number of sampling timesteps (using ddim for faster inference [see citation for ddim paper])
-        ddim_sampling_eta = 0.,
+        ddim_sampling_eta = 1.,
         force_ddim = False,
         auto_normalize=False,
         objective = objective,

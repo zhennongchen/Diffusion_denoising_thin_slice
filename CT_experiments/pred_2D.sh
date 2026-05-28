@@ -10,7 +10,7 @@
 
 # # ============ USER SETTINGS ============
 TRIAL="unsupervised_gaussian_mayo_highnoise"
-MODE="avg"   # or: avg
+MODE="pred"   # or: avg
 INPUT="both"   # or: odd / even / both / all
 RANGE="150-200"
 OBJECTIVE="pred_x0" # or: pred_noise
@@ -30,10 +30,10 @@ for EPOCH in "${EPOCH_LIST[@]}"; do
         --trial_name $TRIAL \
         --epoch $EPOCH \
         --mode $MODE \
-        --objective $OBJECTIVE \
         --input $INPUT \
         --slice_range $RANGE \
-        --NFE $NFE
+        #--objective $OBJECTIVE \
+        #--NFE $NFE
     done
 
 done

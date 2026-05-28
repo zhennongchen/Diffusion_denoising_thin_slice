@@ -51,7 +51,7 @@ def run(args):
 
     study_folder = '/host/d/projects/denoising/models'
     trained_model_filename = os.path.join(study_folder,trial_name, 'models/model-' + str(epoch)+ '.pt')
-    save_folder = os.path.join(study_folder, trial_name, 'pred_images_input_'+ input_condition); os.makedirs(save_folder, exist_ok=True)
+    save_folder = os.path.join(study_folder, trial_name, 'pred_images_input1_'+ input_condition); os.makedirs(save_folder, exist_ok=True)
 
     image_size = [512,512] 
     objective = args.objective #'pred_x0' #if 'noise' not in trial_name else 'pred_noise'
