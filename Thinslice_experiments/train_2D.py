@@ -22,8 +22,8 @@ edge_weight = 0#0.05
 # else: condition on neighboring slices, target the current slice
 condition_channel = 1 if (supervision == 'supervised') or ('mean' in trial_name) else 2
 
-pre_trained_model = os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-75.pt') #None
-start_step = 75#2640
+pre_trained_model = None#os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-75.pt') #None
+start_step = 0#2640
 image_size = [512,512]
 num_patches_per_slice = 2
 patch_size = [128,128]
@@ -38,9 +38,9 @@ normalize_factor = 'equation'
 ###########################
 # define train
 if supervision == 'supervised':
-    build_sheet =  Build_list.Build_thinsliceCT(os.path.join('/host/d/Data/brain_CT/Patient_lists/fixedCT_static_simulation_train_test_gaussian_xjtlu_temporary.xlsx'))
+    build_sheet =  Build_list.Build_thinsliceCT(os.path.join('/host/e/D/Data/brain_CT/Patient_lists/fixedCT_static_simulation_train_test_gaussian_xjtlu_temporary.xlsx'))
 else:
-    build_sheet =  Build_list.Build_thinsliceCT(os.path.join('/host/d/Data/brain_CT/Patient_lists/fixedCT_static_simulation_train_test_gaussian_xjtlu.xlsx'))
+    build_sheet =  Build_list.Build_thinsliceCT(os.path.join('/host/e/D/Data/brain_CT/Patient_lists/fixedCT_static_simulation_train_test_gaussian_xjtlu.xlsx'))
 
 _,_,_,_, condition_list_train, x0_list_train = build_sheet.__build__(batch_list = [0,1,2,3]) 
 n = ff.get_X_numbers_in_interval(total_number = x0_list_train.shape[0],start_number = 0,end_number = 1, interval = 2)
@@ -131,10 +131,10 @@ trainer = ddpm.Trainer(
     diffusion_model= diffusion_model,
     generator_train = generator_train,
     generator_val = generator_val,
-    train_batch_size = 20,
+    train_batch_size = 10,
     
-    accum_iter = 1,
-    train_num_steps = 150, # total training epochs
+    accum_iter = 2,
+    train_num_steps = 50, # total training epochs
     results_folder = os.path.join('/host/d/projects/denoising/models', trial_name, 'models'),
    
     train_lr = 1e-4,

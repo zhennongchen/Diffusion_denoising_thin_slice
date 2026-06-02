@@ -6,10 +6,71 @@ import torch
 import argparse
 import numpy as np 
 import nibabel as nb
+import lpips
+from skimage.metrics import structural_similarity
 import Diffusion_denoising_thin_slice.Thinslice_experiments.denoising_diffusion_pytorch.denoising_diffusion_pytorch.conditional_diffusion as ddpm
 import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator_thinslice as Generator 
+
+
+_LPIPS_MODEL = None
+_LPIPS_DEVICE = None
+
+
+def calc_mae_with_ref_window(img, ref, vmin, vmax):
+    maes = []
+    for slice_num in range(0, img.shape[-1]):
+        slice_img = img[:, :, slice_num]
+        slice_ref = ref[:, :, slice_num]
+        mask = np.where((slice_ref >= vmin) & (slice_ref <= vmax), 1, 0)
+        mae = np.sum(np.abs(slice_img - slice_ref) * mask) / np.sum(mask)
+        maes.append(mae)
+    return float(np.mean(maes))
+
+
+def calc_ssim_with_ref_window(img, ref, vmin, vmax):
+    ssims = []
+    for slice_num in range(0, img.shape[-1]):
+        slice_img = img[:, :, slice_num]
+        slice_ref = ref[:, :, slice_num]
+        mask = np.where((slice_ref >= vmin) & (slice_ref <= vmax), 1, 0)
+        _, ssim_map = structural_similarity(slice_img, slice_ref, data_range=vmax - vmin, full=True)
+        ssim = np.sum(ssim_map * mask) / np.sum(mask)
+        ssims.append(ssim)
+    return float(np.mean(ssims))
+
+
+def calc_lpips_with_ref_window(imgs1, imgs2, vmin, vmax):
+    global _LPIPS_MODEL, _LPIPS_DEVICE
+    if _LPIPS_MODEL is None:
+        _LPIPS_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        _LPIPS_MODEL = lpips.LPIPS().to(_LPIPS_DEVICE)
+
+    lpipss = []
+    for slice_num in range(0, imgs1.shape[-1]):
+        slice1 = imgs1[:, :, slice_num]
+        slice2 = imgs2[:, :, slice_num]
+
+        slice1 = np.clip(slice1, vmin, vmax).astype(np.float32)
+        slice2 = np.clip(slice2, vmin, vmax).astype(np.float32)
+
+        slice1 = (slice1 - vmin) / (vmax - vmin) * 2 - 1
+        slice2 = (slice2 - vmin) / (vmax - vmin) * 2 - 1
+
+        slice1 = np.stack([slice1, slice1, slice1], axis=-1)
+        slice2 = np.stack([slice2, slice2, slice2], axis=-1)
+
+        slice1 = np.transpose(slice1, (2, 0, 1))[np.newaxis, ...]
+        slice2 = np.transpose(slice2, (2, 0, 1))[np.newaxis, ...]
+
+        slice1 = torch.from_numpy(slice1).to(_LPIPS_DEVICE)
+        slice2 = torch.from_numpy(slice2).to(_LPIPS_DEVICE)
+
+        lpips_val = _LPIPS_MODEL(slice1, slice2)
+        lpipss.append(lpips_val.item())
+
+    return float(np.mean(lpipss))
 
 
 def get_args_parser():
@@ -29,6 +90,9 @@ def get_args_parser():
     
     parser.add_argument('--NFE', type=int, default=50,
                         help='number of function evaluations (sampling steps)')
+    
+    parser.add_argument('--eta', type=float, default=0.,
+                        help='eta for ddim sampling, 0 corresponds to deterministic sampling')
         
 
     return parser
@@ -42,7 +106,8 @@ def run(args):
 
     epoch = args.epoch
     trained_model_filename = os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-' + str(epoch)+ '.pt')
-    save_folder = os.path.join('/host/d/projects/denoising/models', trial_name, 'pred_images_NFE' + str(args.NFE)); os.makedirs(save_folder, exist_ok=True)
+    save_folder = os.path.join('/host/d/projects/denoising/models', trial_name, 'pred_images_NFE' + str(args.NFE)+'_eta' + str(int(args.eta)))
+    os.makedirs(save_folder, exist_ok=True)
 
     # bias 
     beta = 0
@@ -62,6 +127,8 @@ def run(args):
     maximum_cutoff = 2000
     normalize_factor = 'equation'
     clip_range = [-1,1]
+    metric_vmin = 0
+    metric_vmax = 100
 
 
     ###########
@@ -90,7 +157,7 @@ def run(args):
         image_size = image_size,
         timesteps = 1000,           # number of steps
         sampling_timesteps = sampling_timesteps,    # number of sampling timesteps (using ddim for faster inference [see citation for ddim paper])
-        ddim_sampling_eta = 1.,
+        ddim_sampling_eta = args.eta,
         force_ddim = False,
         auto_normalize=False,
         objective = objective,
@@ -110,7 +177,8 @@ def run(args):
             slice_start, slice_end = args.slice_range.split('-')
             slice_start, slice_end = int(slice_start), int(slice_end)
         else:
-            slice_start, slice_end = 0, condition_img.shape[2]
+            condition_shape = nb.load(condition_file).shape
+            slice_start, slice_end = 0, condition_shape[2]
 
         if do_pred_or_avg == 'pred':
             # get the ground truth image
@@ -136,6 +204,10 @@ def run(args):
                     slice_numm = a.shape[2]
                     if slice_numm == slice_end - slice_start:
                         print('already done')
+                        mae_val = calc_mae_with_ref_window(a, gt_img, metric_vmin, metric_vmax)
+                        ssim_val = calc_ssim_with_ref_window(a, gt_img, metric_vmin, metric_vmax)
+                        lpips_val = calc_lpips_with_ref_window(a, gt_img, metric_vmin, metric_vmax)
+                        print(f'quant (existing) MAE={mae_val:.6f}, SSIM={ssim_val:.6f}, LPIPS={lpips_val:.6f}')
                         continue
                     else:
                         print('redo')
@@ -167,6 +239,11 @@ def run(args):
                 # save
                 nb.save(nb.Nifti1Image(pred_img, affine), os.path.join(save_folder_case, 'pred_img.nii.gz'))
 
+                mae_val = calc_mae_with_ref_window(pred_img, gt_img, metric_vmin, metric_vmax)
+                ssim_val = calc_ssim_with_ref_window(pred_img, gt_img, metric_vmin, metric_vmax)
+                lpips_val = calc_lpips_with_ref_window(pred_img, gt_img, metric_vmin, metric_vmax)
+                print(f'quant (new) MAE={mae_val:.6f}, SSIM={ssim_val:.6f}, LPIPS={lpips_val:.6f}')
+
                 # if iteration == 1:
                 #     nb.save(nb.Nifti1Image(gt_img, affine), os.path.join(save_folder_case, 'gt_img.nii.gz'))
                 #     nb.save(nb.Nifti1Image(condition_img, affine), os.path.join(save_folder_case, 'condition_img.nii.gz'))
@@ -176,15 +253,25 @@ def run(args):
 
             save_folder_avg = os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num), 'epoch' + str(epoch)+'avg'); os.makedirs(save_folder_avg, exist_ok=True)
 
-            # if os.path.isfile(os.path.join(save_folder_avg, 'pred_img_scans20.nii.gz')):
-            #     print('already done')
-            #     continue
-
             # get the ground truth image
             gt_img = nb.load(x0_file)
             print('x0_file:', x0_file, 'shape:', gt_img.get_fdata().shape)
             affine = gt_img.affine
             gt_img = gt_img.get_fdata()[:,:,slice_start:slice_end]
+
+            if os.path.isfile(os.path.join(save_folder_avg, 'pred_img_scans20.nii.gz')):
+                print('already done')
+                for avg_num_done in [10, 20]:
+                    avg_file_done = os.path.join(save_folder_avg, 'pred_img_scans' + str(avg_num_done) + '.nii.gz')
+                    if os.path.isfile(avg_file_done):
+                        existing_avg = nb.load(avg_file_done).get_fdata()
+                        mae_val = calc_mae_with_ref_window(existing_avg, gt_img, metric_vmin, metric_vmax)
+                        ssim_val = calc_ssim_with_ref_window(existing_avg, gt_img, metric_vmin, metric_vmax)
+                        lpips_val = calc_lpips_with_ref_window(existing_avg, gt_img, metric_vmin, metric_vmax)
+                        print(f'quant avg (existing, scans={avg_num_done}) MAE={mae_val:.6f}, SSIM={ssim_val:.6f}, LPIPS={lpips_val:.6f}')
+                    else:
+                        print(f'quant avg (existing, scans={avg_num_done}) file not found, skip')
+                continue
 
             
             made_predicts = ff.sort_timeframe(ff.find_all_target_files(['epoch' + str(epoch)+'_*'], os.path.join(save_folder, patient_id, patient_subid, 'random_' + str(random_num))),0,'_','/')
@@ -203,10 +290,7 @@ def run(args):
             for j in range(total_predicts):
                 loaded_data[:,:,:,j] = nb.load(os.path.join(made_predicts[j],'pred_img.nii.gz')).get_fdata()
 
-            for avg_num in [1,2,4,8,10,20]:
-                if os.path.isfile(os.path.join(save_folder_avg, 'pred_img_scans' + str(avg_num) + '.nii.gz')):
-                    print('already done avg num:', avg_num)
-                    continue
+            for avg_num in [10, 20]:
                 print('avg_num:', avg_num)
                 predicts_avg = np.zeros((gt_img.shape[0], gt_img.shape[1], gt_img.shape[2], avg_num))
                 print('predict_num:', avg_num)
@@ -216,6 +300,10 @@ def run(args):
                 # average across last axis
                 predicts_avg = np.mean(predicts_avg, axis = -1)
                 nb.save(nb.Nifti1Image(predicts_avg, affine), os.path.join(save_folder_avg, 'pred_img_scans' + str(avg_num) + '.nii.gz'))
+                mae_val = calc_mae_with_ref_window(predicts_avg, gt_img, metric_vmin, metric_vmax)
+                ssim_val = calc_ssim_with_ref_window(predicts_avg, gt_img, metric_vmin, metric_vmax)
+                lpips_val = calc_lpips_with_ref_window(predicts_avg, gt_img, metric_vmin, metric_vmax)
+                print(f'quant avg (new, scans={avg_num}) MAE={mae_val:.6f}, SSIM={ssim_val:.6f}, LPIPS={lpips_val:.6f}')
 
 
 if __name__ == '__main__':
