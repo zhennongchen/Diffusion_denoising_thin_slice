@@ -1028,7 +1028,7 @@ class GaussianDiffusion(nn.Module):
             extract(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise
         )
 
-    def p_losses(self, x_start, t, condition = None,noise = None, offset_noise_strength = None):# gt_for_mask = None, loss_weight_class = None):
+    def p_losses(self, x_start, t, condition = None,noise = None, offset_noise_strength = None, return_x_start_hat = False):# gt_for_mask = None, loss_weight_class = None):
         '''loss_weight_class is a list of [loss for bone, loss for brain, loss for air]'''
         if self.problem_dimension == '2D':
             b,c,h,w = x_start.shape
@@ -1057,13 +1057,20 @@ class GaussianDiffusion(nn.Module):
         else:
             model_out = self.model(x, t)
 
+        x_start_hat = None
         if self.objective == 'pred_noise':
             target = noise
+            if return_x_start_hat:
+                x_start_hat = self.predict_start_from_noise(x, t, model_out)
         elif self.objective == 'pred_x0':
             target = x_start
+            if return_x_start_hat:
+                x_start_hat = model_out
         elif self.objective == 'pred_v':
             v = self.predict_v(x_start, t, noise)
             target = v
+            if return_x_start_hat:
+                x_start_hat = self.predict_start_from_v(x, t, model_out)
         else:
             raise ValueError(f'unknown objective {self.objective}')
         
@@ -1071,7 +1078,7 @@ class GaussianDiffusion(nn.Module):
         loss = reduce(loss, 'b ... -> b (...)', 'mean') # reduce() operates on the batch dimension (b) and potentially other dimensions (...). It reduces the loss tensor to have the same shape as the target tensor, with a mean reduction.
         loss = loss * extract(self.loss_weight, t, loss.shape)  # assign different loss weight to different timesteps
 
-        return loss.mean(),model_out, target
+        return loss.mean(), model_out, target, x_start_hat, t
     
     def forward(self, img, condition = None, *args, **kwargs):
         if self.problem_dimension == '2D':
@@ -1081,8 +1088,8 @@ class GaussianDiffusion(nn.Module):
 
         t = torch.randint(0, self.num_timesteps, (b,), device=device).long() 
 
-        loss, model_out, target = self.p_losses(img, t, condition, *args, **kwargs)
-        return loss, model_out, target
+        loss, model_out, target, x_start_hat, sampled_t = self.p_losses(img, t, condition, *args, **kwargs)
+        return loss, model_out, target, x_start_hat, sampled_t
    
 
 # trainer class
@@ -1161,8 +1168,8 @@ class Trainer(object):
         self.model, self.opt = self.accelerator.prepare(self.model, self.opt)
         self.validation_every = validation_every
 
-        ## lpips loss function
-        self.lpips_loss_fn = lpips.LPIPS(net='vgg').to(self.device)
+        ## lpips loss function is initialized lazily only when lpips_weight is nonzero.
+        self.lpips_loss_fn = None
         ## edge loss function
         self.edge_loss_fn = edge_loss_fn.edge_loss_fn
 
@@ -1229,39 +1236,54 @@ class Trainer(object):
 
                 average_loss = []; average_diffusion_loss = []; average_lpips_loss = []; average_edge_loss = []; average_bias_loss = []
                 count = 0
+                self.opt.zero_grad()
                 for batch in self.dl:
-                    if count == 0 or count % self.accum_iter == 0 or count == len(self.dl) - 1 or count == len(self.dl):
-                        self.opt.zero_grad()
+                    window_start = (count // self.accum_iter) * self.accum_iter
+                    window_end = min(window_start + self.accum_iter, len(self.dl))
+                    current_accum_iter = window_end - window_start
+                    is_accum_step = (count + 1) == window_end
 
                     batch_x0, batch_condition = batch
                     data_x0 = batch_x0.to(device)
                     data_condition = batch_condition.to(device) if self.conditional_diffusion else None
 
                     with self.accelerator.autocast():
-                        diffusion_loss,model_output, target = self.model(img = data_x0, condition = data_condition)
-                        # bias loss
-                        gauss_kernel = kernel.get_gaussian_kernel(kernel_size=37, sigma=6)
-                        lowpass_out = kernel.apply_lowpass_gaussian(model_output, gauss_kernel)
-                        lowpass_target = kernel.apply_lowpass_gaussian(torch.clone(data_x0), gauss_kernel)
-                        bias_loss = F.mse_loss(lowpass_out, lowpass_target, reduction='mean')
+                        need_x_start_hat = beta != 0 or lpips_weight != 0 or edge_weight != 0
+                        diffusion_loss, model_output, target, x_start_hat, sampled_t = self.model(img = data_x0, condition = data_condition, return_x_start_hat = need_x_start_hat)
+                        bias_loss = diffusion_loss.new_tensor(0.)
+                        lpips_loss = diffusion_loss.new_tensor(0.)
+                        edge_loss = diffusion_loss.new_tensor(0.)
 
-                        # calculate lpips loss
-                        # clip model_output to [-1,1]
-                        model_output_clip = torch.clamp(model_output, -1, 1)
-                        model_output_rgb = model_output_clip.repeat(1,3,1,1) if model_output_clip.shape[1] == 1 else model_output_clip
-                        data_x0_rgb = data_x0.repeat(1,3,1,1) if data_x0.shape[1] == 1 else data_x0
-                        lpips_loss = self.lpips_loss_fn(model_output_rgb, data_x0_rgb).mean()
+                        if beta != 0:
+                            gauss_kernel = kernel.get_gaussian_kernel(kernel_size=37, sigma=6)
+                            lowpass_out = kernel.apply_lowpass_gaussian(x_start_hat, gauss_kernel)
+                            lowpass_target = kernel.apply_lowpass_gaussian(data_x0, gauss_kernel)
+                            per_sample_bias_loss = F.mse_loss(lowpass_out, lowpass_target, reduction='none')
+                            per_sample_bias_loss = reduce(per_sample_bias_loss, 'b ... -> b', 'mean')
+                            bias_t_mask = sampled_t < 500
+                            if torch.any(bias_t_mask):
+                                bias_loss = per_sample_bias_loss[bias_t_mask].mean()
 
-                        # edge loss
-                        edge_loss = self.edge_loss_fn(model_output, data_x0)
+                        if lpips_weight != 0:
+                            if self.lpips_loss_fn is None:
+                                self.lpips_loss_fn = lpips.LPIPS(net='vgg').to(device)
+                            x_start_hat_clip = torch.clamp(x_start_hat, -1, 1)
+                            model_output_rgb = x_start_hat_clip.repeat(1,3,1,1) if x_start_hat_clip.shape[1] == 1 else x_start_hat_clip
+                            data_x0_rgb = data_x0.repeat(1,3,1,1) if data_x0.shape[1] == 1 else data_x0
+                            lpips_loss = self.lpips_loss_fn(model_output_rgb, data_x0_rgb).mean()
+
+                        if edge_weight != 0:
+                            edge_loss = self.edge_loss_fn(x_start_hat, data_x0)
 
                         loss = diffusion_loss + lpips_weight * lpips_loss + edge_weight * edge_loss + bias_loss * beta
 
-                    if count % self.accum_iter == 0 or count == len(self.dl) - 1 or count == len(self.dl):
-                        self.accelerator.backward(loss)
+                    self.accelerator.backward(loss / current_accum_iter)
+
+                    if is_accum_step:
                         accelerator.wait_for_everyone()
                         accelerator.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
                         self.opt.step()
+                        self.opt.zero_grad()
                     
                     average_loss.append(loss.item())
                     average_diffusion_loss.append(diffusion_loss.item())
@@ -1302,22 +1324,32 @@ class Trainer(object):
                             data_x0 = batch_x0.to(device)
                             data_condition = batch_condition.to(device) if self.conditional_diffusion else None
                             with self.accelerator.autocast():
-                                diffusion_loss,model_output, target = self.model(img = data_x0, condition = data_condition)
-                                # # bias loss
-                                gauss_kernel = kernel.get_gaussian_kernel(kernel_size=37, sigma=6)
-                                lowpass_out = kernel.apply_lowpass_gaussian(model_output, gauss_kernel)
-                                lowpass_target = kernel.apply_lowpass_gaussian(torch.clone(data_x0), gauss_kernel)
-                                bias_loss = F.mse_loss(lowpass_out, lowpass_target, reduction='mean')
+                                need_x_start_hat = beta != 0 or lpips_weight != 0 or edge_weight != 0
+                                diffusion_loss, model_output, target, x_start_hat, sampled_t = self.model(img = data_x0, condition = data_condition, return_x_start_hat = need_x_start_hat)
+                                bias_loss = diffusion_loss.new_tensor(0.)
+                                lpips_loss = diffusion_loss.new_tensor(0.)
+                                edge_loss = diffusion_loss.new_tensor(0.)
 
-                                # calculate lpips loss
-                                # clip model_output to [-1,1]
-                                model_output_clip = torch.clamp(model_output, -1, 1)
-                                model_output_rgb = model_output_clip.repeat(1,3,1,1) if model_output_clip.shape[1] == 1 else model_output_clip
-                                data_x0_rgb = data_x0.repeat(1,3,1,1) if data_x0.shape[1] == 1 else data_x0
-                                lpips_loss = self.lpips_loss_fn(model_output_rgb, data_x0_rgb).mean()
+                                if beta != 0:
+                                    gauss_kernel = kernel.get_gaussian_kernel(kernel_size=37, sigma=6)
+                                    lowpass_out = kernel.apply_lowpass_gaussian(x_start_hat, gauss_kernel)
+                                    lowpass_target = kernel.apply_lowpass_gaussian(data_x0, gauss_kernel)
+                                    per_sample_bias_loss = F.mse_loss(lowpass_out, lowpass_target, reduction='none')
+                                    per_sample_bias_loss = reduce(per_sample_bias_loss, 'b ... -> b', 'mean')
+                                    bias_t_mask = sampled_t < 500
+                                    if torch.any(bias_t_mask):
+                                        bias_loss = per_sample_bias_loss[bias_t_mask].mean()
 
-                                # edge loss
-                                edge_loss = self.edge_loss_fn(model_output, data_x0)
+                                if lpips_weight != 0:
+                                    if self.lpips_loss_fn is None:
+                                        self.lpips_loss_fn = lpips.LPIPS(net='vgg').to(device)
+                                    x_start_hat_clip = torch.clamp(x_start_hat, -1, 1)
+                                    model_output_rgb = x_start_hat_clip.repeat(1,3,1,1) if x_start_hat_clip.shape[1] == 1 else x_start_hat_clip
+                                    data_x0_rgb = data_x0.repeat(1,3,1,1) if data_x0.shape[1] == 1 else data_x0
+                                    lpips_loss = self.lpips_loss_fn(model_output_rgb, data_x0_rgb).mean()
+
+                                if edge_weight != 0:
+                                    edge_loss = self.edge_loss_fn(x_start_hat, data_x0)
 
                                 loss = diffusion_loss + lpips_weight * lpips_loss + edge_weight * edge_loss + bias_loss * beta
                             

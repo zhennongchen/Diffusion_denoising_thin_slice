@@ -14,12 +14,12 @@ MODE="avg"   # or: avg
 INPUT="both"   # or: odd / even / both / all
 RANGE="150-200"
 OBJECTIVE="pred_noise" # or: pred_noise
-ETA=1.0
+ETA=0.0
 # =======================================
 
 # list of epochs you want to run
-EPOCH_LIST=(285)
-NFE_LIST=(30 50)
+EPOCH_LIST=(220)
+NFE_LIST=(2 3 5 10 20)
 
 # loop through epochs then loop through NFE values
 for EPOCH in "${EPOCH_LIST[@]}"; do
@@ -27,7 +27,7 @@ for EPOCH in "${EPOCH_LIST[@]}"; do
     for NFE in "${NFE_LIST[@]}"; do
         echo "Running NFE $NFE ..."
     
-    python3 predict_2D.py \
+    python3 predict_2D_copy.py \
         --trial_name $TRIAL \
         --epoch $EPOCH \
         --mode $MODE \

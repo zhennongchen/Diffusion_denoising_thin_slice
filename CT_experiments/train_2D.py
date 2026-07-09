@@ -10,7 +10,7 @@ import Diffusion_denoising_thin_slice.functions_collection as ff
 import Diffusion_denoising_thin_slice.Build_lists.Build_list as Build_list
 import Diffusion_denoising_thin_slice.Generator as Generator
 
-trial_name = 'unsupervised_gaussian_mayo_highnoise'
+trial_name = 'unsupervised_gaussian_mayo_highnoise_predict_noise_bias'
 problem_dimension = '2D'
 supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'
 adjacent_condition = True if 'adjacent' in trial_name else False
@@ -19,17 +19,17 @@ print('supervision type:', supervision, '; adjacent condition:', adjacent_condit
 preload = True
 
 # bias  
-beta = 0
+beta = 10
 lpips_weight = 0#0.2
 edge_weight = 0#0.05
 
 # model condition 
 condition_channel = 1 if not adjacent_condition else 2
-train_batch_size = 3
-objective = 'pred_x0' #if 'noise' not in trial_name else 'pred_noise'
+train_batch_size = 5
+objective = 'pred_noise' #if 'noise' not in trial_name else 'pred_noise'
 
-pre_trained_model =  None#os.path.join('/host/d/projects/denoising/models', 'unsupervised_gaussian_mayo', 'models/model-105.pt') #None
-start_step = 0#216
+pre_trained_model = os.path.join('/host/d/projects/denoising/models', trial_name, 'models/model-150.pt') #None
+start_step = 150
 
 # image condition
 image_size = [512,512]
@@ -147,9 +147,9 @@ generator_val = G(
         condition_list = condition_list_val,
         image_size = image_size,
 
-        num_slices_per_image = 90,
+        num_slices_per_image = 50,
         random_pick_slice = False,
-        slice_range = [100,190],
+        slice_range = [150,200],
 
         num_patches_per_slice = 1,
         patch_size = [512,512],
@@ -170,8 +170,8 @@ trainer = ddpm.Trainer(
     generator_val = generator_val,
     train_batch_size = train_batch_size,
     
-    accum_iter =5,
-    train_num_steps = 200, # total training epochs
+    accum_iter =3,
+    train_num_steps = 300, # total training epochs
     results_folder = save_models_folder,
    
     train_lr = 1e-4,
