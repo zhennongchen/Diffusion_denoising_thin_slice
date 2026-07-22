@@ -19,7 +19,7 @@ print('supervision type:', supervision, '; adjacent condition:', adjacent_condit
 preload = True
 
 # bias  
-beta = 10
+beta = 40
 lpips_weight = 0#0.2
 edge_weight = 0#0.05
 

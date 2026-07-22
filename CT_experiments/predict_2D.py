@@ -54,7 +54,7 @@ def run(args):
     supervision = 'supervised' if trial_name[0:2] == 'su' else 'unsupervised'; print('supervision:', supervision)
 
     study_folder = '/host/d/projects/denoising/models'
-    trained_model_filename = os.path.join(study_folder,trial_name, 'models-200/model-' + str(epoch)+ '.pt')
+    trained_model_filename = os.path.join(study_folder,trial_name, 'models-40/model-' + str(epoch)+ '.pt')
 
     save_folder = os.path.join(study_folder, trial_name, 'pred_images_NFE' + str(args.NFE)+'_ETA_' + str(args.eta)); os.makedirs(save_folder, exist_ok=True)
 
